@@ -1,0 +1,84 @@
+CREATE TABLE IF NOT EXISTS pop(
+   idPOP INT PRIMARY KEY,
+   popPosition VARCHAR(30) NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS cabinet(
+	idCabinet VARCHAR(5) PRIMARY KEY,
+	numOfSlot INT NOT NULL,
+	idPOP INT,
+	FOREIGN KEY (idPOP) REFERENCES pop (idPOP)
+		ON DELETE CASCADE
+		ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS employee(
+	idEmployee INT PRIMARY KEY,
+	name VARCHAR(20) NOT NULL,
+	surname VARCHAR(20) NOT NULL,
+	birthDate DATE NOT NULL,
+	email VARCHAR(20) NOT NULL UNIQUE
+);
+
+
+
+CREATE TABLE IF NOT EXISTS deviceType(
+	idDeviceType SERIAL PRIMARY KEY,
+	deviceType VARCHAR(15) NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS action(
+	idAction SERIAL PRIMARY KEY,
+	actionType VARCHAR(10) NOT NULL UNIQUE
+);
+
+
+CREATE TABLE IF NOT EXISTS device(
+
+	idDevice SERIAL PRIMARY KEY,
+	serialNumber VARCHAR(30) NOT NULL,
+	sizeDevice INT NOT NULL,
+	producerDevice VARCHAR(20) NOT NULL,
+	yearProduction DATE NOT NULL,
+	statusDevice VARCHAR(10) NOT NULL,
+	usedSlot VARCHAR(15),
+	idDeviceType INT,
+	idEmployee INT, 
+	idCabinet VARCHAR(5),
+	FOREIGN KEY(idDeviceType) REFERENCES deviceType(idDeviceType)
+		ON DELETE CASCADE
+		ON UPDATE CASCADE,
+	FOREIGN KEY(idEmployee) REFERENCES employee(idEmployee)
+		ON DELETE CASCADE
+		ON UPDATE CASCADE,
+	FOREIGN KEY(idCabinet) REFERENCES cabinet(idCabinet)
+		ON DELETE CASCADE
+		ON UPDATE CASCADE
+);
+
+
+
+CREATE TABLE IF NOT EXISTS log(
+	idLog SERIAL PRIMARY KEY,
+    dateLog DATE NOT NULL,
+    timeLog TIMESTAMP NOT NULL,
+    slotOccupati INT NOT NULL,
+    idDevice INT,
+    idEmployee INT,
+    idCabinet VARCHAR(5),
+    idAction INT,
+	idDeviceReplaced INT,
+    FOREIGN KEY(idDevice) REFERENCES device(idDevice)
+    	ON DELETE CASCADE
+    	ON UPDATE CASCADE,
+    FOREIGN KEY(idEmployee) REFERENCES employee(idEmployee)
+    	ON DELETE CASCADE
+    	ON UPDATE CASCADE,
+    FOREIGN KEY(idCabinet) REFERENCES cabinet(idCabinet)
+    	ON DELETE CASCADE
+    	ON UPDATE CASCADE,
+    FOREIGN KEY(idAction) REFERENCES action(idAction)
+    	ON DELETE CASCADE
+    	ON UPDATE CASCADE
+);
+
