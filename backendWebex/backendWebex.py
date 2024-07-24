@@ -5,7 +5,7 @@ from datetime import date, datetime
 from threading import Thread, Lock
 import time
 
-from takefreeSlot import check_space_for_device, cleanResult
+from takefreeSlot import check_space_for_device, cleanResult, check_space_for_cabinet
 
 
 """------------------------ CONNESSIONE AL DATABASE--------------------------------------- """
@@ -16,25 +16,46 @@ conn = psycopg2.connect(database="postgres",
                         port="5432")
 
 
-cursor = conn.cursor()
-
+cursor = conn.cursor() #accesso al database.
 """ ---------------------------------------------------------------------"""
 
+
+
+"""  ------ CREAZIONE APP FLASK -----   """ 
 app = Flask("Conexo") #creiamo l'app Flask
 api = Api(app) #la rendiamo ogetto restful
 
 
-matricola = None
+
+
+"""   ----- VARIABILI  GLOBALI ---- 
+- matricola e email: utili per mantenere lo stato dell'autenticazione.
+- mutex: per gestire la mutua escluzione all'accesso delle variabili matricola e email, conteso tra metodo e Thread.
+""" 
+
+matricola = None 
 email = None
 
-#mutex utile per la gestione della variabile condivisa di accesso. 
-
-mutex = Lock()
-
-current_timestamp = datetime.now()
+mutex = Lock() 
 
 
 
+
+""" ----- CLASSE CABINET REST ---- 
+
+Utilizza le variabili globali cursor, email e matricola. 
+
+METODI IMPLEMENTATI: GET 
+
+GET: La get può avere due valenze. Di seuito sono riportate le valenze e le funzionalità:
+- /cabinet/<int:selector>/<string:position>: viene inviato un selettore e la posizione attuale (sede)
+
+    - Se il selettore è 0, allora mi restituisce tutti i cabinet della posizione inviata.
+    - Se il selettore è 1, allora mi permette di prendere lo spazio libero contiguo massimo tra i cabinet di una sede.
+
+-/cabinet/<int:selector>/<string:position>: Mi permette di prender quei cabinet che hanno una posizione massima contigua maggiore o uguale di quella inviata.
+
+"""
 class Cabinet(Resource):
 
     global cursor
@@ -42,7 +63,6 @@ class Cabinet(Resource):
     global matricola
 
     
-  
 
     def get(self, position=None, dimension=None, selector=None):
 
@@ -56,13 +76,12 @@ class Cabinet(Resource):
         if dimension == None and selector == 0 : #volgio solo i cabinet della posizione
 
             try: 
-                cursor.execute(
-                'SELECT * FROM CABINET WHERE idPOP = ( SELECT idPOP FROM POP WHERE popPosition = %s)', [position])
+                cursor.execute('SELECT * FROM CABINET WHERE idPOP = ( SELECT idPOP FROM POP WHERE popPosition = %s)', [position])
 
                 allCabinets = cursor.fetchall()
 
                 if len(allCabinets) != 0:
-                    # Creare una lista di dizionari dai risultati della query
+                    
                     
                     response = jsonify(allCabinets)
                     return make_response(response, 200)
@@ -98,9 +117,10 @@ class Cabinet(Resource):
 
                 listEffective, all_free = cleanResult(result, dimension, dictionary_max_dimensions) #pulisco il risultato
 
+
+                listEffective = sorted(listEffective, key=sorting_key)
                 print(listEffective)
                 print(all_free)
-
 
                 resp = check_space_for_device(dimension, listEffective, dictionary_max_dimensions) #preparo la risposta
 
@@ -109,7 +129,6 @@ class Cabinet(Resource):
                 print(resp)
 
                 if len(resp) != 0:
-                    # Creare una lista di dizionari dai risultati della query
                     
                     return make_response(resp, 200)
 
@@ -127,25 +146,103 @@ class Cabinet(Resource):
 
                 try:
 
-                    cursor.execute('SELECT MAX(c.numOfSlot - COALESCE(l.slotOccupati, 0)) AS MaxOccupied FROM cabinet c LEFT JOIN log l ON l.idCabinet = c.idCabinet AND l.timeLog = (SELECT MAX(l2.timeLog) FROM log l2 WHERE l2.idCabinet = c.idCabinet) INNER JOIN  PoP p ON c.idPOP = p.idPOP WHERE p.popPosition = %s', [position])
+                    #cursor.execute('SELECT MAX(c.numOfSlot - COALESCE(l.slotOccupati, 0)) AS MaxOccupied FROM cabinet c LEFT JOIN log l ON l.idCabinet = c.idCabinet AND l.timeLog = (SELECT MAX(l2.timeLog) FROM log l2 WHERE l2.idCabinet = c.idCabinet) INNER JOIN  PoP p ON c.idPOP = p.idPOP WHERE p.popPosition = %s', [position])
 
-                    result = cursor.fetchone()
+                    #result = cursor.fetchone()
 
-                    if len(result) != 0 and result[0] != 0:
-                        # Creare una lista di dizionari dai risultati della query
+
+                    cursor.execute('SELECT idCabinet, numOfSlot from Cabinet AS C join Pop As P on C.idPOP = P.idPOP WHERE P.popPosition = %s', [position])
+
+                    max_dimensions = cursor.fetchall()
+
+                    dictionary_max_dimensions = {elem[0] : elem[1] for elem in max_dimensions}
+
+                    print(dictionary_max_dimensions)
+
+                    cursor.execute('SELECT C.idCabinet, COALESCE(D.usedSlot, CAST(0 AS VARCHAR(15))) FROM Device AS D JOIN Cabinet AS C ON D.idCabinet= C.idCabinet JOIN POP AS P ON p.idPOP = C.idPOP WHERE P.popPosition = %s AND D.usedSlot != %s GROUP BY C.idCabinet, D.usedSlot ORDER BY usedSlot', [position, '-'])
+
+                    result = cursor.fetchall()
+
+
+                    listEffective, all_free = cleanResult(result, 0, dictionary_max_dimensions) #pulisco il risultato
+
+
+                    listEffective = sorted(listEffective, key=sorting_key)
+
+                    print("List_effective:")
+                    print(listEffective)
+                    print("All_free:")
+                    print(all_free)
+
+
+                    resp = []
+                    maxval = 0
+
+                    if len(listEffective) != 0:
+                        resp = check_space_for_cabinet(listEffective, dictionary_max_dimensions) #preparo la risposta
+
+                        if len(all_free) != 0:
+                            all_free_max = max(all_free)
+
+                            if len(resp) != 0 and all_free_max > max(resp):
+                                maxval  = all_free_max
+
+                            elif len(resp) == 0:
+                                maxval = all_free_max
+
+                            else:
+                                maxval = max(resp)
+                        else:
+                            maxval = max(resp)
+
+                    elif len(all_free) != 0:
+                        maxval = max(all_free)
+
+                    
+                    
+ 
+                    if maxval > 0:
                         
-                        response = jsonify(result)
+                        
+                        response = jsonify(maxval)
                         return make_response(response, 200)
 
                     else:
                         response = "No slot dimension found."
                         return make_response(response, 404)
 
-                except (Exception, psycopg2.DatabaseError, TypeError) as error:
+                except (psycopg2.DatabaseError, TypeError) as error:
                     print(error)
                     response = "An error is occured"
                     return make_response(response, 500)
 
+                except (ValueError) as error:
+                    print(error)
+                    response = "No slot dimension found."
+                    return make_response(response, 404)
+
+
+
+
+
+""" ----- CLASSE DEVICE REST ---- 
+
+Utilizza le variabili globali cursor, email e matricola. 
+
+METODI IMPLEMENTATI: GET, POST,  DELETE
+
+GET: La get può avere due valenze. Di seguito ne sono riportate le funzionalità (/device/<string:cabinet>):
+    - Se il cabinet non è fornito, restituisco tutti i device (Debugging)
+    - Se ilcabinet è fornito, fornisco i device di quel cabinet.
+
+POST: Permette di aggiungere un dispositivo e aggiornare il log. Il suo comportamento è diverso a seconda se risulta essere un inserimento di un dispositivo 
+o una sostituzione. Questo viene capito dal JSON creato appositamente per distinguere le due richieste.
+
+
+DELETE: Permette di mettere in stato "Removed" un dispositivo e aggiornare il log. Il suo comportamento è diverso a seconda se risulta essere una rimozione di un dispositivo 
+o una sostituzione. Questo viene capito dal JSON creato appositamente per distinguere le due richieste.
+
+"""
 
 
 
@@ -156,7 +253,7 @@ class Device(Resource):
     global matricola
     global email
 
-    #GET dei dispositivi, a seconda dell'URI che ho ho una risposta differente
+
     def get(self, cabinet=None):
 
         if email==None or matricola==None:
@@ -195,7 +292,8 @@ class Device(Resource):
             #prende i dispositivi attivi o inattivi in un certo cabinet (può essere pure dismesso)
 
             try:
-                cursor.execute("SELECT DT.DeviceType, D.serialnumber, D.producerdevice,D.statusdevice, D.iddevice FROM Device AS D LEFT JOIN DeviceType AS DT ON D.idDeviceType=DT.idDeviceType WHERE (D.statusDevice = 'Active' OR D.statusDevice = 'Inactive') AND D.idCabinet= %s", [cabinet])
+
+                cursor.execute("SELECT DT.DeviceType, D.serialnumber, D.producerdevice,D.statusdevice, D.iddevice, D.usedSlot FROM Device AS D LEFT JOIN DeviceType AS DT ON D.idDeviceType=DT.idDeviceType WHERE (D.statusDevice = 'Active' OR D.statusDevice = 'Inactive') AND D.idCabinet= %s", [cabinet])
 
                 devices = cursor.fetchall()
 
@@ -234,7 +332,6 @@ class Device(Resource):
                 opType = data["type"]
 
 
-                                
 
                 cursor.execute("UPDATE Device SET statusDevice = 'Removed', usedSlot='-' WHERE idDevice=%s AND (statusDevice = 'Active' OR statusDevice = 'Inactive')", [str(idDevice)]) # dopo aver fatto update, devo creare un nuovo log in cui indico l'azione fatta 
 
@@ -260,30 +357,41 @@ class Device(Resource):
 
 
                     mutex.acquire()
+
+                    if email != None and matricola != None:
+
                     
-                    if opType == "delete": #operazione di eliminazione
+                        if opType == "delete": #operazione di eliminazione
+
+                            current_timestamp = datetime.now()# prende data e ora        
+                            cursor.execute("INSERT INTO Log (dateLog, timeLog, slotOccupati, idDevice, idEmployee, idCabinet, idAction)  values(%s, %s, %s, %s, %s, %s, %s)", (date.today(), current_timestamp.strftime("%Y-%m-%d %H:%M:%S"), newOccupied, str(idDevice), str(matricola), idCabinet, 2))
+
+                        elif opType == "update": #operazione di update
+
+                            current_timestamp = datetime.now()# prende data e ora       
+                            cursor.execute("INSERT INTO Log (dateLog, timeLog, slotOccupati, idDevice, idEmployee, idCabinet, idAction)  values(%s, %s, %s, %s, %s, %s, %s)", (date.today(), current_timestamp.strftime("%Y-%m-%d %H:%M:%S"), newOccupied, str(idDevice), str(matricola), idCabinet, 3))
 
 
-                        cursor.execute("INSERT INTO Log (dateLog, timeLog, slotOccupati, idDevice, idEmployee, idCabinet, idAction)  values(%s, %s, %s, %s, %s, %s, %s)", (date.today(), current_timestamp.strftime("%Y-%m-%d %H:%M:%S"), newOccupied, str(idDevice), str(matricola), idCabinet, 2))
 
-                    elif opType == "update": #operazione di update
+                        if cursor.rowcount != 0:
 
-                        cursor.execute("INSERT INTO Log (dateLog, timeLog, slotOccupati, idDevice, idEmployee, idCabinet, idAction)  values(%s, %s, %s, %s, %s, %s, %s)", (date.today(), current_timestamp.strftime("%Y-%m-%d %H:%M:%S"), newOccupied, str(idDevice), str(matricola), idCabinet, 3))
+                            conn.commit()
+                            mutex.release()
+                            result = "Dispositivo rimosso correttamente, Log aggiornato."
+                            return make_response(result, 200)
 
+                        else:
+                            mutex.release()
+                            conn.rollback()
+                            response = "Errore nell'aggiornamento, riprova più tardi."
+                            return make_response(response, 404)
 
-
-                    if cursor.rowcount != 0:
-
-                        conn.commit()
-                        mutex.release()
-                        result = "Dispositivo rimosso correttamente, Log aggiornato."
-                        return make_response(result, 200)
 
                     else:
-                        mutex.release()
                         conn.rollback()
-                        response = "Errore nell'aggiornamento, riprova più tardi."
-                        return make_response(response, 404)
+                        response = "Session Expired."
+                        mutex.release()
+                        return make_response(response, 419)
 
                     
                 else:
@@ -354,9 +462,11 @@ class Device(Resource):
 
                     if data["updatedDevice"] == None:
 
+                        current_timestamp = datetime.now()# prende data e ora       
                         cursor.execute("INSERT INTO Log (dateLog, timeLog, slotOccupati, idDevice, idEmployee, idCabinet, idAction)  values (%s, %s, %s, %s, %s, %s, %s)", [date.today(), current_timestamp.strftime("%Y-%m-%d %H:%M:%S"), occupiedSlot, str(idDevice), str(matricola), data["idCabinet"], 1])
 
                     else:
+                        current_timestamp = datetime.now()# prende data e ora       
                         cursor.execute("INSERT INTO Log (dateLog, timeLog, slotOccupati, idDevice, idEmployee, idCabinet, idAction, idDeviceReplaced)  values (%s, %s, %s, %s, %s, %s, %s, %s)", [date.today(), current_timestamp.strftime("%Y-%m-%d %H:%M:%S"), occupiedSlot, str(idDevice), str(matricola), data["idCabinet"], 3, data["updatedDevice"]])
 
 
@@ -381,11 +491,6 @@ class Device(Resource):
                 mutex.release()
                 return make_response(response, 419)
 
-        
-
-
-
-
 
         except (Exception, psycopg2.DatabaseError, TypeError) as error:
 
@@ -397,6 +502,18 @@ class Device(Resource):
 
 
 
+
+""" ----- CLASSE EMPLOYEE REST ---- 
+
+Utilizza le variabili globali cursor, email e matricola. 
+
+METODI IMPLEMENTATI: GET, POST
+
+GET: Utile per capire se il dipendente ha una sessione attiva o meno.
+
+POST: Permette di effettuare l'accesso. 
+
+"""
 
 
 
@@ -457,6 +574,13 @@ class Employee(Resource):
 
 
 
+def sorting_key(item):
+    
+    string = item[0]
+    prefix, first_num, second_num = string.split()[0], int(string.split()[2]), int(string.split()[4])
+    return (prefix, first_num, second_num)
+
+
 
 def checkTime():
 
@@ -478,7 +602,7 @@ def checkTime():
 
     
 
-api.add_resource(Cabinet, '/cabinet/<string:position>/<int:dimension>','/cabinet/<int:selector>/<string:position>', '/cabinet/<int:dimension>')
+api.add_resource(Cabinet, '/cabinet/<string:position>/<int:dimension>','/cabinet/<int:selector>/<string:position>')
 api.add_resource(Device, '/device', '/device/<string:cabinet>')
 api.add_resource(Employee, '/employee')
 

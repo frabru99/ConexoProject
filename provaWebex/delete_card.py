@@ -20,10 +20,24 @@ bot_url = "https://f8ae-93-147-221-46.ngrok-free.app"
 
 
 """ ------------------------------ ELIMINAZIONE ------------------------------------- 
-Card per eliminazione del dispositivo: Possiamo chiedere posizione (o prenderla) e poi l'armadietto in base a dove mi trovo. 
-Poi mostra un selettore che fa vedere le posizioni uniche dei dispositivi con accanto seriale del dispositivo, per decidere quale eliminare. 
+
+- Viene chiesto il cabinet interessato (relativo alla sede in cui mi trovo).
+- Se il cabinet non risulta vuoto, allora torna la lista dei dispositivi presenti da poter eliminare.
+
 """
 
+
+
+
+
+
+"""
+
+SHOW_REMOVE_CARD_DEVICE: Scelta del cabinet da eliminare. 
+- La query permette di prendere tutti i cabinet relativi alla posizione "pos" passata come parametro.
+- I cabinet disponibili vengono poi messi una lista e esposti come una Option List.
+
+"""
 def show_remove_card_cabinet(incoming_msg, pos, ipaddress):
 
 
@@ -132,9 +146,12 @@ def show_remove_card_cabinet(incoming_msg, pos, ipaddress):
 
 
    
-
 """
-Scelta dell'elemento da eliminare 
+
+SHOW_REMOVE_CARD_DEVICE: Scelta del cabinet da eliminare. 
+- La query permette di prendere tutti i dispositivi relativi a quel cabinet.
+- I cabinet disponibili vengono poi messi una lista e esposti come una Option List.
+
 """
 def show_remove_card_device(incoming_msg, ipaddress):
 
@@ -151,7 +168,8 @@ def show_remove_card_device(incoming_msg, ipaddress):
 
         data = response.json()
 
-        options = [{"title": elem[0] + " / " + elem[1] + " / " + elem[2] + " / " +  elem[3] + " / "+ str(elem[4]),  "value": elem[4]} for elem in data]
+        #elem è composto in questo modo: [Tipologia, SerialNumber, Produttore, Stato, ID, UsedSlot]
+        options = [{"title": elem[0] + " di " + elem[2] + " : " + elem[1] + " : " +  elem[3] + " : "+ str(elem[5]),  "value": elem[4]} for elem in data]
         
 
         attachment = """
@@ -184,7 +202,7 @@ def show_remove_card_device(incoming_msg, ipaddress):
                         "type": "Input.ChoiceSet",
                         "id": "selectOption",
                         "choices": [""" + ','.join([f'{{"title": "{opt["title"]}", "value": "{opt["value"]}"}}' for opt in options]) + """],
-                        "style": "compact",
+                        "style": "expanded",
                         "isMultiSelect": false,
                         "wrap": true
                     }

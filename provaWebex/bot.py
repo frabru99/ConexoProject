@@ -12,7 +12,6 @@ import sys
 from urllib.parse import quote
 import ast 
 import re
-import time
 
 
 from message_functions import create_message_with_attachment, get_attachment_actions, ret_message
@@ -22,6 +21,8 @@ from update_card import show_remove_card_cabinetup,show_remove_update_card, show
 
 
 
+"""--------Funzione Utile per Prendere il link attivo di NGROK che espone il bot----------"""
+
 def get_ngork_url():
     while True:
         try:
@@ -29,23 +30,36 @@ def get_ngork_url():
             data = response.json()
             tunnel_url = data['tunnels'][0]['public_url']
             return tunnel_url
+            
         except(requests.exceptions.ConnectionError, IndexError, KeyError):
             time.sleep(1)
 
-""" -------------------- CREAZIONE DEL BOPT E DEFINIZIONE VARIABILI -------------------- """
+
+
+"""
+Queste variabili globali sono utili per vari scopi:
+    - ipaddress: contiene l'indirizzo ip esposto dal backend in esecuzione con cui il bot comunicherà, passato come primo argomento a linea di comando. 
+    - cabinet: variavile utile nelle operazioni di inserimento e sotituzione, per tenere a mente della scelta.
+    - posizione: variabile globale utile per tutte le operazioni, tiene conto della posizione geografica attuale. 
+    - dimension: variabile che tiene conto della dimensione scelta, utile nell'operazione di inserimento e sostituzione.
+    - idDeviceUp: variabile che tiene conto dell'id del device che viene aggiornato.
+"""
+
+ipaddress = sys.argv[1]
+cabinet = None 
+posizione = None 
+dimension = None
+idDeviceUp = None
+
+
+
+""" -------------------- CREAZIONE DEL BOT E DEFINIZIONE VARIABILI -------------------- """
 # Retrieve required details from environment variables
 
 bot_email = "conexo@webex.bot"
 teams_token = "NDkxMGIyNDAtNjgwZS00ZGM1LTkyMjAtY2ZmYTYwMDE3Zjc4NTUzZDU1MTEtOGRk_P0A1_9db452ae-a8fa-4c45-ad97-a9c6809f2db1"
 bot_app_name = "Conexo"
-bot_url = str(get_ngork_url())
-
-
-cabinet = None #variabile globale cabinet per aggiornamento
-posizione = None #variabile globale per la posizione
-ipaddress = sys.argv[1]
-dimension = None
-idDeviceUp = None
+bot_url = get_ngork_url()
 
 
 
@@ -65,9 +79,6 @@ if not bot_email or not teams_token or not bot_url or not bot_app_name:
     sys.exit()
 
 
-# Create a Bot Object
-#   Note: debug mode prints out more details about processing to terminal
-#   Note: the `approved_users=approved_users` line commented out and shown as reference
 bot = TeamsBot(
     bot_app_name,
     teams_bot_token=teams_token,
@@ -83,7 +94,11 @@ bot = TeamsBot(
 
 
 
-""" ------------- FUNZIONE PER LA POSIZIONE-------------- """
+
+""" ------------- FUNZIONE PER LA POSIZIONE-------------- 
+Questa funzione è utile per prendere la posizione attuale del dipendente, basandosi sull'indirizzo IP del sistema dove gira lo script del bot.
+
+"""
 def get_current_gps_coordinates():
     g = geocoder.ip('me')
     if g.latlng is not None: 
@@ -93,12 +108,14 @@ def get_current_gps_coordinates():
 
 
 
+""" --------------------- FUNZIONE SHOW_CARD INIZIALE E di HANDLE -----------------------
 
-""" --------------------- FUNZIONE SHOW_CARD INIZIALE E di HANDLE ----------------------- """
+SHOW_CARD: Questa adaptive card viene mostrata alla pressione del comando "/gestisci", e permette di:
 
-"""
-SHOW_CARD: Questa adaptive card viene mostrata alla pressione del comando "/gestisci", e permette di 
-Inserire undispositivo, Eliminare un dispositivo, Sostituire un dispositivo. 
+- Inserire undispositivo
+- Eliminare un dispositivo
+- Sostituire un dispositivo. 
+
 """
 def show_card(incoming_msg):
     attachment = """
@@ -160,23 +177,24 @@ def show_card(incoming_msg):
 
 
 """
-HANDLE_CARDS: Funzione che permette di gestire tutte le pressioni dei botton di tutte le adaptive card. 
+HANDLE_CARDS: Funzione che permette di gestire tutte le azioni da compiere alla pressione di ogni bottone sulla Adaptive Card.
 """
 def handle_cards(api, incoming_msg):
     
-    global cabinet #variabile globale utile per l'aggiornamento. 
-    global dimension #utile per la dimensione scelta nell'inserimento
-    global idDeviceUp #variabile globale idDevice rimosso
+    global cabinet 
+    global dimension 
+    global idDeviceUp 
 
-    m = get_attachment_actions(incoming_msg["data"]["id"]) #messaggio in arrivo, utile per icavare le info scelte 
+    m = get_attachment_actions(incoming_msg["data"]["id"]) #messaggio in arrivo, utile per ricavare le informazioni su quello che abbiamo scelto.
    
     #SE VOGLIAMO GESTIRE LA POSIZIONE CHIESTA ALL'UTENTE, MEETTERE QUI l'IF
-   
-    
-    print("STAMPA MESSAGGIO")
+
+
+    print("STAMPA MESSAGGIO") #stampa di Debug
     print(m)
 
     
+    #Gestionde dell'autenticazione. Essa è necessaria per effettuare ogni operazione.
 
     if isinstance(m["inputs"], dict) and m["inputs"]["action"] == "auth":
 
@@ -185,10 +203,10 @@ def handle_cards(api, incoming_msg):
             return "*Si prega di compilare tutti i campi.*"
 
 
-         #LOGIN
+        #LOGIN
         if m["inputs"]["action"] == "auth" and m["inputs"]["Matricola"] != "" and m["inputs"]["Email"] != "":
             
-            url = "http://"+ipaddress+":4000/employee"
+            url = "http://"+ipaddress+":4000/employee" #POST al backend per l'autenticazione.
 
             data = {"matricola": m["inputs"]["Matricola"], "email": m["inputs"]["Email"]}
         
@@ -206,7 +224,7 @@ def handle_cards(api, incoming_msg):
 
         
 
-    url = "http://"+ipaddress+":4000/employee"
+    url = "http://"+ipaddress+":4000/employee" #Controllo dell'avvenuta autenticazione.
 
     response = requests.get(url)
 
@@ -227,7 +245,11 @@ def handle_cards(api, incoming_msg):
 
          
 
-        #ELIMINAZIONE
+        #ELIMINAZIONE: Gestione del processo di eliminazione.
+        # - Scegliamo l'armadietto.
+        # - Dopo averlo scelto, scegliamo il device.
+        # - Effettiva eliminazione
+
         if m["inputs"]["action"] == "cabinet" and m["inputs"]["selectOption"] != "": #Dopo aver scelto l'armadietto
 
             show_remove_card_device(m, ipaddress) #Card per scegliere il device da eliminare 
@@ -237,7 +259,7 @@ def handle_cards(api, incoming_msg):
         if m["inputs"]["action"] == "elimina" and m["inputs"]["selectOption"] != "":
 
 
-            url = 'http://' +ipaddress+ ':4000/device'
+            url = 'http://' +ipaddress+ ':4000/device' 
 
             data = {"idDevice": m["inputs"]["selectOption"], "type": "delete"}
 
@@ -245,11 +267,10 @@ def handle_cards(api, incoming_msg):
                 'Content-Type': 'application/json'
             }
 
-            response = requests.delete(url, json=data, headers=headers)
-
+            response = requests.delete(url, json=data, headers=headers) #Richiesta DELETE per eliminare il dispositivo.
 
             if response.status_code == 200:
-
+                
                 return "*Eliminato correttamete device con ID: **{}***".format(m["inputs"]["selectOption"])
 
             elif response.status_code ==419:
@@ -259,17 +280,19 @@ def handle_cards(api, incoming_msg):
 
                 return "*Errore, elemento non eliminato o non presente.**{}***".format(m["inputs"]["selectOption"])
 
-        
 
 
 
-        #INSERIMENTO
+        #INSERIMENTO: Gestione dell'azione di inserimento. 
+        # - Scelgo la dimensione del mio dispositivo (da quella dello spazio contiguo massimo disponibile nei cabinet presenti in quella località.)
+        # - Inserisco i dati richiesti per l'aggiunta.
+        # - Effettiva aggiunta del dispositivo.
         if m["inputs"]["action"] == "dimension" and m["inputs"]["selectOption"] != "":
 
 
             dimension=int(m["inputs"]["selectOption"]) 
 
-            show_add_card(m, posizione, ipaddress, dimension) #mostriamo la card di aggiunta con i campi da compilare
+            show_add_card(m, posizione, ipaddress, dimension) 
 
             return ""
 
@@ -291,10 +314,11 @@ def handle_cards(api, incoming_msg):
 
                 url = "http://"+ipaddress+":4000/device"
 
-                response = requests.post(url, json=data_to_send, headers=headers)
+                response = requests.post(url, json=data_to_send, headers=headers) #Richiesta POST per l'aggiunta del dispositivo.
 
 
                 if response.status_code==200:
+
                     return "*Dispositivo inserito correttamente.*"
 
                 elif response.status_code==404:
@@ -323,7 +347,9 @@ def handle_cards(api, incoming_msg):
 
 
 
-        #SOSTITUZIONE
+        #SOSTITUZIONE: Gestisce la sotituzione di un dispositivo. 
+        # - Gestisce prima una Eliminazione come visto precedentemente.
+        # - Gestisce poi un Inserimento come visto precedentemente. 
         if m["inputs"]["action"] == "cabinet_remove_update" and m["inputs"]["selectOption"] != "": 
 
             cabinet = m["inputs"]["selectOption"]
@@ -394,6 +420,7 @@ def handle_cards(api, incoming_msg):
 
 
                 if response.status_code==200:
+                    
                     return "*Dispositivo inserito correttamente.*"
 
                 elif response.status_code==404:
@@ -430,7 +457,11 @@ def handle_cards(api, incoming_msg):
 
 
 
-"""------------------ AUTENTICAZIONE ------------------ """
+"""------------------ AUTENTICAZIONE ------------------ 
+Adaptive Card per l'Autenticazione. Essa richiede:
+- E-MAIL del dipendente.
+- Matricola univoca del dipendente.
+"""
 
 
 def show_auth_direct(incoming_msg):
@@ -490,16 +521,14 @@ def show_auth_direct(incoming_msg):
     
     
 
-
-# Add new commands to the bot.
+#Aggiunta dei comandi al bot. 
 bot.add_command("attachmentActions", "*", handle_cards)
 bot.add_command("/gestisci", "Gestisci i dispositivi.", show_card)
 bot.add_command("/login", "Autenticazione dipendenti.", show_auth_direct)
 
 
 
-# Every bot includes a default "/echo" command.  You can remove it, or any
-# other command with the remove_command(command) method.
+#Rimozione comando ECHO.
 bot.remove_command("/echo")
 
 if __name__ == "__main__":
@@ -509,7 +538,7 @@ if __name__ == "__main__":
 
     if coordinates is not None:
 
-        latitude, longitude = coordinates
+        latitude, longitude = coordinates #Acquisizione e stampe di Debug.
         print(f"Your current GPS coordinates are:")
         print(f"Latitude: {latitude}")
         print(f"Longitude: {longitude}")
@@ -526,6 +555,7 @@ if __name__ == "__main__":
 
         bot.run(host="0.0.0.0", port=5000)
     else:
-        print("Non è stato possibile recuperare la posizione. ")
+        print("Non è stato possibile recuperare la posizione.")
 
 
+    

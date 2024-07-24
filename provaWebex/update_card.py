@@ -10,7 +10,10 @@ from message_functions import create_message_with_attachment, get_attachment_act
 
 
 """ ------------------------------- SOSTITUISCI ------------------------------------------- 
-Effettua prima una eliminazione, poi una add, ma senza indicare armadietto e posizione che sono presi da quello precedente.
+
+Le Adaptive Card per l'operazione di sostituzione sono del tutto uguali a quelle per Eliminazione e Inserimento. 
+Sono state modificate al fine di diversificare la sostituzione dalle due singole operazioni
+
 """
 
 def show_remove_card_cabinetup(incoming_msg, pos, ipaddress):
@@ -255,7 +258,7 @@ def show_update_card_dimension(incoming_msg, pos, ipaddress):
 
     if response.status_code == 200:
 
-        maxvalue = response.json()[0]
+        maxvalue = response.json()
 
         options = [
             {"title": str(i+1), "value": i+1} for i in range(maxvalue)

@@ -1,4 +1,13 @@
 
+
+
+"""
+
+Funzione utile a trovare, nel JSON passato tramite Webex in vista dell'inserimento o una sostituzione, i campi col numero seriale (serial), 
+il produttore (producer) e anno di produzione (year --- production)
+
+"""
+
 def foundFields(data):
 
     search_key_prod = "producer" #per il producer

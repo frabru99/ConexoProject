@@ -110,7 +110,7 @@ INSERT INTO cabinet (idCabinet, numOfSlot, idPOP) VALUES
 --('A-MI', 20, 3),
 --('A-TO', 20, 4),
 --('A-FI', 20, 5)
-('C-NA', 20, 1)
+('C-NA', 15, 1)
 
 
 
@@ -156,9 +156,6 @@ UPDATE Device SET usedSlot = NULL WHERE idDevice='2'
 
 SELECT numOfSlot, idCabinet FROM Cabinet WHERE idCabinet= (SELECT idCabinet FROM Device WHERE idDevice=1)
 
-
-
-
 SELECT DT.DeviceType, D.serialnumber, D.producerdevice, D.iddevice 
 	FROM Device AS D LEFT JOIN DeviceType AS DT ON D.idDeviceType=DT.idDeviceType 
 	WHERE (D.statusDevice = 'Active' OR D.statusDevice = 'Inactive') AND D.idCabinet= 'A-MI'
@@ -166,28 +163,39 @@ SELECT DT.DeviceType, D.serialnumber, D.producerdevice, D.iddevice
 
 SELECT L.slotOccupati, D.idCabinet, D.sizeDevice FROM Log AS L JOIN Device AS D ON  D.idCabinet = L.idCabinet WHERE D.idCabinet = (SELECT idCabinet FROM Device WHERE idDevice=1) AND L.timeLog = (SELECT MAX(timeLog) FROM Log where idCabinet=D.idCabinet)
 
-SELECT * FROM Device
+SELECT D.idCabinet, D.sizeDevice, L.slotOccupati, L.idaction FROM Device AS D JOIN Log AS L ON D.idCabinet = L.idCabinet GROUP BY D.idCabinet, D.sizeDevice, L.slotOccupati, L.idaction
 
 SELECT * FROM Cabinet
-SELECT * FROM Log
+SELECT * FROM Log;
+SELECT * FROM Device;
+
+DROP TABLE LOG
 
 DROP TABLE Log
 
-DELETE FROM Log Where idLog=8
+DELETE FROM Device Where idDevice = '22'
 
 
--- Aggiornamento della sequenza
-SELECT setval('log_idlog_seq', (SELECT MAX(idLog) FROM log)); --aggiorniamo sequenza
+--Mi mostra null se non ho dispositivi 
+SELECT setval('log_idlog_seq', (SELECT MAX(idLog) FROM log)); 
 SELECT setval('device_iddevice_seq', (SELECT MAX(idDevice) FROM Device));
+
+--facciamo ripartire la sequenza
+ALTER SEQUENCE device_iddevice_seq RESTART WITH 1;
+ALTER SEQUENCE log_idlog_seq RESTART WITH 1;
 
 SELECT idEmployee, email FROM Employee WHERE idEmployee = '1' AND email = 'mario.rossi@example.com'
 
 
-
+DROP TABLE Log
 
 --QUERY CHE RESTIUISCE i cabinet con slot occupati tali da fare spazio a una certa dimensione, raccogliendo i dati dai log. 
 
 SELECT c.idCabinet, COALESCE(l.slotOccupati, 0) AS slotOccupati, c.numOfSlot - COALESCE(l.slotOccupati, 0) AS slotLiberiFROM cabinet c LEFT JOIN (SELECT idCabinet, slotOccupati,ROW_NUMBER() OVER(PARTITION BY idCabinet ORDER BY timeLog DESC) AS rnFROM log WHERE timeLog = (SELECT MAX(timeLog) FROM log l2 WHERE l2.idCabinet = log.idCabinet)) l ON c.idCabinet = l.idCabinet AND l.rn = 1 INNER JOIN PoP p ON c.idPOP = p.idPOP WHERE p.popPosition = 'Napoli' GROUP BY c.idCabinet, c.numOfSlot, l.slotOccupati HAVING (c.numOfSlot - COALESCE(l.slotOccupati, 0)) > 5;
+
+
+SELECT last_value FROM device_iddevice_seq;
+
 
 
 --Massimo spazio residuo nei cabinet, alla posizione attuale--
@@ -209,3 +217,4 @@ UPDATE LOG SET slotOccupati = NULL where idLog = 8
 
 SELECT L.slotOccupati, D.idCabinet, D.sizeDevice FROM Log AS L JOIN Device AS D ON  D.idCabinet = L.idCabinet WHERE D.idCabinet = (SELECT idCabinet FROM Device WHERE idDevice=15) AND L.timeLog = (SELECT MAX(timeLog) FROM Log where idCabinet=D.idCabinet) 
 
+SELECT DT.DeviceType, D.serialnumber, D.producerdevice,D.statusdevice, D.iddevice, D.usedSlot FROM Device AS D LEFT JOIN DeviceType AS DT ON D.idDeviceType=DT.idDeviceType WHERE (D.statusDevice = 'Active' OR D.statusDevice = 'Inactive') AND D.idCabinet= 'B-NA'

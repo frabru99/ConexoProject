@@ -7,14 +7,21 @@ from webexteamsbot.models import Response
 import sys
 import json
 from io import BytesIO
-#from PIL import Image
+from PIL import Image
 import geocoder
 from geopy.geocoders import Nominatim
 import sys
 from urllib.parse import quote
 
 
+"""
 
+Funzioni ausiliarie per l'invio dei messaggi con Attachment (tra cui Adaptive Card):
+- create_message_with_attachment: permette di generare un messaggio con attachment e inviarlo al bot.
+- get attachment_actions: permette di prendere il JSON di risposta alla pressione di un tasto,
+- ret_message: funzione per Debugging.
+
+"""
 
 bot_email = "conexo@webex.bot"
 teams_token = "NDkxMGIyNDAtNjgwZS00ZGM1LTkyMjAtY2ZmYTYwMDE3Zjc4NTUzZDU1MTEtOGRk_P0A1_9db452ae-a8fa-4c45-ad97-a9c6809f2db1"
@@ -23,9 +30,7 @@ bot_url = "https://f8ae-93-147-221-46.ngrok-free.app"
 
 
 
-# Temporary function to send a message with a card attachment (not yet
-# supported by webexteamssdk, but there are open PRs to add this
-# functionality)
+
 def create_message_with_attachment(rid, msgtxt, attachment):
     headers = {
         "content-type": "application/json; charset=utf-8",
@@ -38,8 +43,7 @@ def create_message_with_attachment(rid, msgtxt, attachment):
     return response.json()
 
 
-# Temporary function to get card attachment actions (not yet supported
-# by webexteamssdk, but there are open PRs to add this functionality)
+
 def get_attachment_actions(attachmentid):
     headers = {
         "content-type": "application/json; charset=utf-8",
@@ -51,10 +55,7 @@ def get_attachment_actions(attachmentid):
     return response.json()
 
 
-# An example using a Response object.  Response objects allow more complex
-# replies including sending files, html, markdown, or text. Rsponse objects
-# can also set a roomId to send response to a different room from where
-# incoming message was recieved.
+
 def ret_message(incoming_msg):
     """
     Sample function that uses a Response object for more options.

@@ -82,3 +82,38 @@ CREATE TABLE IF NOT EXISTS log(
     	ON UPDATE CASCADE
 );
 
+INSERT INTO deviceType (idDeviceType, deviceType) VALUES
+(1, 'Router'),
+(2, 'Switch'),
+(3, 'Firewall'),
+(4, 'PowerSupply');
+
+
+-- Insert data into pop table
+INSERT INTO pop (idPOP, popPosition) VALUES
+(1, 'Napoli'),
+(2, 'Roma'),
+(3, 'Milano'),
+(4, 'Torino'),
+(5, 'Firenze');
+
+INSERT INTO cabinet (idCabinet, numOfSlot, idPOP) VALUES
+('A-NA', 20, 1),
+('A-RM', 20, 2),
+('A-MI', 20, 3),
+('A-TO', 20, 4),
+('A-FI', 20, 5),
+('B-NA', 10, 1),
+('C-NA', 15, 1);
+
+-- Insert data into employee table
+INSERT INTO employee (idEmployee, name, surname, birthDate, email) VALUES
+(1, 'Mario', 'Rossi', '1985-07-20', 'mario.rossi@example.com'),
+(2, 'Luigi', 'Verdi', '1990-08-15', 'luigi.verdi@example.com'),
+(3, 'Giulia', 'Bianchi', '1982-06-30', 'giulia.bianchi@example.com');
+
+-- Insert data into action table
+INSERT INTO action (idAction, actionType) VALUES
+(1, 'Install'),
+(2, 'Remove'),
+(3, 'Update');

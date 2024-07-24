@@ -13,19 +13,26 @@ bot_url = "https://f8ae-93-147-221-46.ngrok-free.app"
 """ ------------------------------------ INSERIMENTO ----------------------------------------
 
 Possiamo strutturare l'inserimento in questo modo:
-- Si prende la località, o la si chiede
 - Da qui, chiediamo la dimensione del dispositivo (occuperemo poi gli slot disponibili in ordine nell'armadietto)
-- A seconda di questo, poi chiediamo, IL TIPO DI DISPOSITIVO, L'ARMADIETTO (con quella dimensione disponibile), L'IMPIEGATO (magari da mostrare in ordine alfabetico), 
-  URL dell'immagine dove prenderemo i dati. 
+- A seconda di questo, poi chiediamo, IL TIPO DI DISPOSITIVO, L'ARMADIETTO (con quella dimensione disponibile), JSON preso dal QR scansionato dove prenderemo i dati. 
+
 """
 
-options2 = [
+devices = [
         {"title": "Router", "value": "Router"},
         {"title": "Firewall", "value": "Firewall"},
         {"title": "Switch", "value": "Switch"},
         {"title": "PowerSupply", "value": "PowerSupply"}
     ]
 
+
+"""
+SHOW_ADD_CARD_DIMENSION: Card per la scelta della dimensione.
+
+- Richiede la dimensione contigua massima disponibile
+- Genera ka card per la scleta di una dimensione per il device.
+
+"""
 
 def show_add_card_dimension(incoming_msg, pos, ipaddress):
 
@@ -37,9 +44,10 @@ def show_add_card_dimension(incoming_msg, pos, ipaddress):
 
     if response.status_code == 200:
 
-        maxvalue = response.json()[0]
+        maxvalue = response.json()
 
-        options = [
+
+        dimensions = [
             {"title": str(i+1), "value": i+1} for i in range(maxvalue)
         ]
         
@@ -65,7 +73,7 @@ def show_add_card_dimension(incoming_msg, pos, ipaddress):
                     {
                         "type": "Input.ChoiceSet",
                         "id": "selectOption",
-                        "choices": [""" + ','.join([f'{{"title": "{opt["title"]}", "value": "{opt["value"]}"}}' for opt in options]) + """],
+                        "choices": [""" + ','.join([f'{{"title": "{opt["title"]}", "value": "{opt["value"]}"}}' for opt in dimensions]) + """],
                         "style": "compact",
                         "isMultiSelect": false
                     }
@@ -130,10 +138,24 @@ def show_add_card_dimension(incoming_msg, pos, ipaddress):
 
 
 
+
+
+"""
+
+SHOW_ADD_CARD: Permette di aggiungere il dispositivo.
+
+Vengono chiesti:
+- Tipologia
+- Posizione (tra quelle immediatamente disponibili)
+- JSON per le caratteristiche del dispositivo.
+
+"""
+
+
 def show_add_card(incoming_msg, pos, ipaddress, dimension): 
 
 
-    global options2 
+    global devices 
 
 
     dimensione = incoming_msg["inputs"]["selectOption"]
@@ -150,10 +172,11 @@ def show_add_card(incoming_msg, pos, ipaddress, dimension):
 
         cabinets = response.json()
 
-                
-        options3 = [{"title":"Cabinet: " + slot_free[i][0] + " / Posizione disponibile: " + str(slot_free[i][1]) + " - " + str(slot_free[i][2]) ,  "value": slot_free[i]} for slot_free in cabinets if len((slot_free)) > 0 for i in range(len(slot_free))]
+        #slot_free è una lista contenuta in una lista di liste fatta in questo modo [idDevice, inizioRangePosizione, fineRangePosizione, dimensioneDispositivo]
 
-        print(options3)
+        positions = [{"title":"Cabinet: " + slot_free[i][0] + " / Posizione disponibile: " + str(slot_free[i][1]) + " - " + str(slot_free[i][2]) ,  "value": slot_free[i]} for slot_free in cabinets if len((slot_free)) > 0 for i in range(len(slot_free))]
+
+        print(positions)
 
         attachment = """
         {
@@ -189,7 +212,7 @@ def show_add_card(incoming_msg, pos, ipaddress, dimension):
                     {
                         "type": "Input.ChoiceSet",
                         "id": "Tipologia dispositivo",
-                        "choices": [""" + ','.join([f'{{"title": "{opt["title"]}", "value": "{opt["value"]}"}}' for opt in options2]) + """],
+                        "choices": [""" + ','.join([f'{{"title": "{opt["title"]}", "value": "{opt["value"]}"}}' for opt in devices]) + """],
                         "style": "compact",
                         "isMultiSelect": false
                     },
@@ -200,7 +223,7 @@ def show_add_card(incoming_msg, pos, ipaddress, dimension):
                     {
                         "type": "Input.ChoiceSet",
                         "id": "Armadietto",
-                        "choices": [""" + ','.join([f'{{"title": "{opt["title"]}", "value": "{opt["value"]}"}}' for opt in options3]) + """],
+                        "choices": [""" + ','.join([f'{{"title": "{opt["title"]}", "value": "{opt["value"]}"}}' for opt in positions]) + """],
                         "style": "compact",
                         "isMultiSelect": false
                     },
@@ -265,8 +288,17 @@ def show_add_card(incoming_msg, pos, ipaddress, dimension):
 
 
 
+
+
+"""
+
+getJson: Funzione che trasforma quello inviato tramite adaptive card in formato JSON da mandare con POST al backend.
+
+"""
+
 def getJson(data, cabinet, deviceType, dimension, updatedDevice=None):
-    asDictionary = ast.literal_eval(data) #questo trasforma il json inviato tramkite Adaptive Card in dizionario. 
+
+    asDictionary = ast.literal_eval(data) #questo trasforma il json inviato tramite Adaptive Card in dizionario. 
 
     producer, year_of_prod, serial = foundFields(asDictionary)
 
