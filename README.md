@@ -15,7 +15,7 @@ Tecnologie Utilizzate:
  - **Data Storage:** PostGreSQL, Python, flask
  - **Data Visualization:** Microsoft PowerBI, flask
  
-## Avvio del Sistema. 
+## Avvio del Sistema
 
 Assicurarsi di aver creato il DataBase con gli inserimenti base e che PostGre sia attivo e in ascolto sulla porta 5432. E' possibile farlo con il comando `netstat -a -b`
 
