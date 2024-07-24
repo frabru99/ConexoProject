@@ -7,7 +7,7 @@ from webexteamsbot.models import Response
 import sys
 import json
 from io import BytesIO
-from PIL import Image
+#from PIL import Image
 import geocoder
 from geopy.geocoders import Nominatim
 import sys

@@ -12,8 +12,7 @@ import sys
 from urllib.parse import quote
 import ast 
 import re
-
-
+import time
 
 
 from message_functions import create_message_with_attachment, get_attachment_actions, ret_message
@@ -22,13 +21,24 @@ from delete_card import show_remove_card_cabinet, show_remove_card_device
 from update_card import show_remove_card_cabinetup,show_remove_update_card, show_insert_update_card, show_update_card_dimension
 
 
+
+def get_ngork_url():
+    while True:
+        try:
+            response = requests.get('http://127.0.0.1:4040/api/tunnels')
+            data = response.json()
+            tunnel_url = data['tunnels'][0]['public_url']
+            return tunnel_url
+        except(requests.exceptions.ConnectionError, IndexError, KeyError):
+            time.sleep(1)
+
 """ -------------------- CREAZIONE DEL BOPT E DEFINIZIONE VARIABILI -------------------- """
 # Retrieve required details from environment variables
 
 bot_email = "conexo@webex.bot"
 teams_token = "NDkxMGIyNDAtNjgwZS00ZGM1LTkyMjAtY2ZmYTYwMDE3Zjc4NTUzZDU1MTEtOGRk_P0A1_9db452ae-a8fa-4c45-ad97-a9c6809f2db1"
 bot_app_name = "Conexo"
-bot_url = "https://e846-93-147-221-46.ngrok-free.app"
+bot_url = str(get_ngork_url())
 
 
 cabinet = None #variabile globale cabinet per aggiornamento
@@ -519,4 +529,3 @@ if __name__ == "__main__":
         print("Non è stato possibile recuperare la posizione. ")
 
 
-    
