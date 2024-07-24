@@ -16,6 +16,7 @@ Tecnologie Utilizzate:
  - **Data Visualization:** Microsoft PowerBI, flask
  
 ## Avvio del Sistema
+Installare le dependencies scaricando il file e usanod il comando `pip install -r requirements.txt`
 
 Assicurarsi di aver creato il DataBase con gli inserimenti base e che PostGre sia attivo e in ascolto sulla porta 5432. E' possibile farlo con il comando `netstat -a -b`
 
