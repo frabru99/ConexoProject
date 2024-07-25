@@ -180,8 +180,9 @@ def show_remove_update_card(incoming_msg, ipaddress):
                         "type": "Input.ChoiceSet",
                         "id": "selectOption",
                         "choices": [""" + ','.join([f'{{"title": "{opt["title"]}", "value": "{opt["value"]}"}}' for opt in options]) + """],
-                        "style": "compact",
-                        "isMultiSelect": false
+                        "style": "expanded",
+                        "isMultiSelect": false,
+                        "wrap": true
                     }
                 ],
                 "actions": [
