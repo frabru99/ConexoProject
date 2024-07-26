@@ -132,10 +132,10 @@ INSERT INTO action (idAction, actionType) VALUES
 
 -- Insert data into device table
 INSERT INTO device (idDevice, serialNumber, sizeDevice, producerDevice, yearProduction, statusDevice, usedSlot, idDeviceType, idEmployee, idCabinet) VALUES
---(1, 'SN123456', 1, 'Cisco', '2020-01-01', 'Active', 'A-NA - 1', 1, 1, 'A-NA'),
---(2, 'SN789012', 2, 'HP', '2019-02-02', 'Removed', NULL, 2, 2, 'A-RM'),
+--(1, 'SN123456', 1, 'Cisco', '2020-01-01', 'Active', 'A-NA - 1 / 1 ', 1, 1, 'A-NA'),
+--(2, 'SN789012', 2, 'HP', '2019-02-02', 'Removed', '-', 2, 2, 'A-RM'),
 --(3, 'SN345678', 3, 'Juniper', '2021-03-03', 'Inactive', 'A-MI - 1 / 3 ', 3, 3, 'A-MI');
-	
+(5, 'SN345578', 3, 'Juniper', '2021-03-03', 'Active', 'A-RM - 1 / 3 ', 4, 3, 'A-RM');	
 
 
 
@@ -150,7 +150,7 @@ INSERT INTO log (idLog, dateLog, timeLog, slotOccupati, idDevice, idEmployee, id
 
 
 
-UPDATE Device SET usedSlot = 'A-NA - 1 / 4'  WHERE idDevice='1'
+UPDATE Device SET usedSlot = 'A-NA - 1 / 1'  WHERE idDevice='1'
 UPDATE Device SET usedSlot = NULL WHERE idDevice='2'
 	
 
@@ -173,7 +173,7 @@ DROP TABLE LOG
 
 DROP TABLE Log
 
-DELETE FROM Device Where idDevice = '22'
+DELETE FROM Device Where idCabinet = 'A-MI'
 
 
 --Mi mostra null se non ho dispositivi 
@@ -181,7 +181,7 @@ SELECT setval('log_idlog_seq', (SELECT MAX(idLog) FROM log));
 SELECT setval('device_iddevice_seq', (SELECT MAX(idDevice) FROM Device));
 
 --facciamo ripartire la sequenza
-ALTER SEQUENCE device_iddevice_seq RESTART WITH 1;
+ALTER SEQUENCE device_iddevice_seq RESTART WITH 6;
 ALTER SEQUENCE log_idlog_seq RESTART WITH 1;
 
 SELECT idEmployee, email FROM Employee WHERE idEmployee = '1' AND email = 'mario.rossi@example.com'
@@ -210,11 +210,15 @@ SELECT idCabinet, numOfSlot from Cabinet AS C join Pop As P on C.idPOP = P.idPOP
 SELECT slotOccupati FROM Log WHERE timeLog = (SELECT MAX(timeLog) FROM Log WHERE idCabinet = 'A-NA')
 
 
+
+SELECT idCabinet FROM Cabinet AS C JOIN POP AS P ON p.idPOP=C.idPOP WHERE P.popPosition = 'Napoli'
+
 SELECT max(idDevice) from Device
 
 UPDATE LOG SET slotOccupati = NULL where idLog = 8
 
+SELECT D.idDevice, D.serialNumber, D.sizeDevice, D.producerdevice, D.yearProduction, D.statusDevice, D.usedSlot, DT.deviceType, D.idCabinet FROM Device AS D JOIN DeviceType AS DT ON D.idDeviceType=DT.idDeviceType 
 
 SELECT L.slotOccupati, D.idCabinet, D.sizeDevice FROM Log AS L JOIN Device AS D ON  D.idCabinet = L.idCabinet WHERE D.idCabinet = (SELECT idCabinet FROM Device WHERE idDevice=15) AND L.timeLog = (SELECT MAX(timeLog) FROM Log where idCabinet=D.idCabinet) 
 
-SELECT DT.DeviceType, D.serialnumber, D.producerdevice,D.statusdevice, D.iddevice, D.usedSlot FROM Device AS D LEFT JOIN DeviceType AS DT ON D.idDeviceType=DT.idDeviceType WHERE (D.statusDevice = 'Active' OR D.statusDevice = 'Inactive') AND D.idCabinet= 'B-NA'
+SELECT D.idDevice, D.serialNumber, D.sizeDevice, D.producerdevice, D.yearProduction, D.statusDevice, D.usedSlot, DT.deviceType, D.idCabinet FROM Device AS D JOIN DeviceType AS DT ON D.idDeviceType=DT.idDeviceType WHERE D.idCabinet IN (SELECT idCabinet FROM Cabinet AS C JOIN POP AS P ON p.idPOP=C.idPOP WHERE P.popPosition = 'Napoli')

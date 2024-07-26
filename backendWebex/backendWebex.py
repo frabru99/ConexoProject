@@ -4,6 +4,8 @@ import psycopg2
 from datetime import date, datetime
 from threading import Thread, Lock
 import time
+import requests
+
 
 from takefreeSlot import check_space_for_device, cleanResult, check_space_for_cabinet
 
@@ -245,8 +247,6 @@ o una sostituzione. Questo viene capito dal JSON creato appositamente per distin
 """
 
 
-
-
 class Device(Resource):
 
     global cursor
@@ -378,6 +378,7 @@ class Device(Resource):
                             conn.commit()
                             mutex.release()
                             result = "Dispositivo rimosso correttamente, Log aggiornato."
+                            requests.get("http://192.168.1.14:3000/notify")
                             return make_response(result, 200)
 
                         else:
@@ -475,6 +476,7 @@ class Device(Resource):
 
                     conn.commit()
                     mutex.release()
+                    requests.get("http://192.168.1.14:3000/notify") #notifica
                     return make_response(response, 200)
                     
                 else:
