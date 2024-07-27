@@ -116,4 +116,5 @@ INSERT INTO employee (idEmployee, name, surname, birthDate, email) VALUES
 INSERT INTO action (idAction, actionType) VALUES
 (1, 'Install'),
 (2, 'Remove'),
-(3, 'Update');
+(3, 'Update'),
+(4, 'ErrorMes');

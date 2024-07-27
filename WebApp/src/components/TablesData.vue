@@ -67,10 +67,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed} from 'vue'
 import axios from 'axios'
 import StatusIndicator from './StatusIndicator.vue'
-import { QSelect, QExpansionItem, QTable, QTd, QBtn, useQuasar } from 'quasar'
+import { QSelect, QExpansionItem, QTable, QTd, QBtn, Notify} from 'quasar'
 import io from 'socket.io-client'
 
 
@@ -91,21 +91,23 @@ const columns = [
   { name: 'status', label: 'Status', field: 'status', sortable: true},
   { name: 'usedslot', label: 'Used Slot', field: 'usedslot', sortable: true}, 
   { name: 'devicetype', label: 'Device Type', field: 'devicetype', sortable: true},
-  { name: 'latest', label: 'Latest update', field: 'timelog', sortable: true}
+  { name: 'latest', label: 'Latest update', field: 'timelog', sortable: true},
+  { name: 'device rep', label: 'Device Replaced', field: 'devicereplaced', sortable: true}
 ]
 
 
-const rows = ref([])
 const groupedRows = ref({})
 const filteredRows = ref({})
 const selectedStatus = ref('All')
 const statusOptions = ref([
-     'All',
+     'All', 
+    'Active & Inactive',
     'Active',
     'Inactive',
     'Removed'
 ])
 const expansionState = ref({})
+
 
 const loadData = async (title, update) => {
   try {
@@ -120,9 +122,27 @@ const loadData = async (title, update) => {
           }
           acc[element.idcabinet].push(element)
         })
-        return acc
+        
+
+        const keys = Object.keys(acc)
+
+        keys.sort((key1, key2) => {
+            // Sort alphabetically (ascending order)
+            if (key1 < key2) return -1;
+            if (key1 > key2) return 1;
+            return 0;
+        });
+
+        const sortedAcc = {}
+
+        for (const key of keys) {
+            sortedAcc[key] = acc[key];
+        }
+
+        return sortedAcc
       }, {})
       groupedRows.value = grouped
+      
       filterByStatus()
       
       if(update == 0){
@@ -144,10 +164,16 @@ const loadData = async (title, update) => {
 const filterByStatus = () => {
   if (selectedStatus.value == 'All') {
     filteredRows.value = groupedRows.value
-  } else {
+  } else if (selectedStatus.value != 'Active & Inactive') {
     const filtered = {}
     for (const [key, value] of Object.entries(groupedRows.value)) {
       filtered[key] = value.filter(item => item.status === selectedStatus.value)
+    }
+    filteredRows.value = filtered
+  } else {
+    const filtered = {}
+    for (const [key, value] of Object.entries(groupedRows.value)) {
+      filtered[key] = value.filter(item => item.status === 'Active' | item.status === 'Inactive')
     }
     filteredRows.value = filtered
   }
@@ -171,15 +197,19 @@ const openAllCabinets = () => {
   })
 }
 
+
+
 //funzione di notifica
 const showNotification = (message) => {
-  const $q = useQuasar()
-  $q.notify({
-    message,
-    color: 'positive',
+ 
+  Notify.create({
+    message: message,
+    color: 'primary',
+    textColor: 'white',
     position: 'bottom-right',
-    timeout: 3000,
-    actions: [{ icon: 'close', color: 'white' }]
+    timeout: 5000,
+    actions: [{ icon: 'close', color: 'white' }],
+    classes: 'my-custom-notification'
   })
 }
 
@@ -202,9 +232,9 @@ onMounted(() => {
 
   const socket = io('http://192.168.1.14:3000')
 
-  socket.on('update_data', () => {
+  socket.on('update_data', (data) => {
     loadData(props.title, 1)
-    showNotification("Aggiornamenti nel POP di " + props.title)
+    showNotification("Aggiornamenti nel POP di " + data.position)
   })
 })
 
@@ -214,6 +244,14 @@ watch(() => props.title, (newParams) => {
      
     loadData(newParams, 0)
     
+    
   }
 }, { immediate: true })
 </script>
+
+
+<style>
+  .my-custom-notification .q-notification__inner {
+      font-size: 100px;
+   }
+</style>

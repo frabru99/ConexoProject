@@ -376,7 +376,12 @@ class Device(Resource):
                             conn.commit()
                             mutex.release()
                             result = "Dispositivo rimosso correttamente, Log aggiornato."
-                            requests.get("http://192.168.1.14:3000/notify")
+
+                            cursor.execute("Select p.popPosition FROM POP as P JOIN Cabinet as C on C.idPOP=p.idPOP WHERE C.idCabinet=%s", [idCabinet])
+
+                            pos = cursor.fetchone()
+                            requests.get("http://192.168.1.14:3000/notify/"+pos[0]) #notifica
+
                             return make_response(result, 200)
 
                         else:
@@ -474,7 +479,11 @@ class Device(Resource):
 
                     conn.commit()
                     mutex.release()
-                    requests.get("http://192.168.1.14:3000/notify") #notifica
+
+                    cursor.execute("Select p.popPosition FROM POP as P JOIN Cabinet as C on C.idPOP=p.idPOP WHERE C.idCabinet=%s", [data["idCabinet"]])
+
+                    pos = cursor.fetchone()
+                    requests.get("http://192.168.1.14:3000/notify/"+pos[0]) #notifica
                     return make_response(response, 200)
                     
                 else:
@@ -522,7 +531,8 @@ class Employee(Resource):
         def get(self): #questa mi serve semplicemente per capire se la sessione è attiva o meno 
 
             if email==None or matricola==None:
-
+                print(email)
+                print(matricola)
                 response = "Session expired."
                 return make_response(response, 419)
 
@@ -572,6 +582,51 @@ class Employee(Resource):
                 return make_response(response, 500)
 
 
+#Simulazione inattività/attività dispositivo.
+class Simulate_Inactivate(Resource):
+
+    def get(self, selector, device_id):
+        try:
+            # Controlla lo stato corrente del dispositivo
+            cursor.execute("SELECT statusDevice FROM device WHERE idDevice = %s", (device_id,))
+            status = cursor.fetchone()
+
+            if not status:
+                response = "*Dispositivo non trovato*"
+                return make_response(response, 404)
+
+            
+            # Verifica se il dispositivo è 'Active'
+            if status[0] != 'Active' and status[0] != 'Inactive' :
+                response = "*Il dispositivo è stato rimosso.*"
+                return make_response(response, 200)
+
+            
+
+            response = ""
+            current_timestamp = datetime.now()# prende data e ora
+            # Aggiorna lo stato del dispositivo a 'Inactive'
+            if selector == 0 and status[0] == 'Active':
+                cursor.execute("UPDATE device SET statusDevice = 'Inactive' WHERE idDevice = %s", [device_id])
+                response = "*Stato del dispositivo aggiornato a 'Inactive'*"
+            elif selector == 1 and status[0] == 'Inactive':
+                cursor.execute("UPDATE device SET statusDevice = 'Active' WHERE idDevice = %s", [device_id])
+                response = "*Stato del dispositivo aggiornato a 'Active'*"
+
+            cursor.execute("UPDATE log SET timelog = %s, idAction=4 WHERE idDevice = %s", [current_timestamp.strftime("%Y-%m-%d %H:%M:%S"), device_id])
+
+            conn.commit()
+
+            cursor.execute("SELECT p.popPosition FROM POP As P JOIN Cabinet as C on C.idPOP = P.idPOP WHERE C.idCabinet = (SELECT DISTINCT L.idCabinet FROM LOG as L WHERE l.idDevice = %s)", [device_id])
+
+            pos = cursor.fetchone()
+            requests.get("http://192.168.1.14:3000/notify/" + pos[0]) #notifica
+            return make_response(response, 200)
+
+        except (Exception, psycopg2.DatabaseError, TypeError) as error:
+            print(error)
+            response = "Si è verificato un errore"
+            return make_response(response, 500)
 
 
 def sorting_key(item):
@@ -605,6 +660,7 @@ def checkTime():
 api.add_resource(Cabinet, '/cabinet/<string:position>/<int:dimension>','/cabinet/<int:selector>/<string:position>')
 api.add_resource(Device, '/device', '/device/<string:cabinet>')
 api.add_resource(Employee, '/employee')
+api.add_resource(Simulate_Inactivate, '/simulate/<int:selector>/<int:device_id>')
 
 
 
