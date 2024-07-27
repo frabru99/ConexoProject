@@ -27,6 +27,7 @@ Assicurarsi di aver creato il DataBase con gli inserimenti base e che PostGre si
  - Avviare il bot con il primo argomento l'indirizzo IP su cui il backend è in ascolto: bot.py
 
 **Avvio Interfaccia Web**
+ N.B  Modificare le richieste tramite AXIOS con il proprio indirizzo ip su cui gira il backend a cui riferisce la pagina.
  - Estrarre il pacchetto Web Application, aprire il cmd e entrare nella cartella di progetto. Eseguire il comando `npm install` per installare tutte le dipendenze
  - Nel cmd, eseguire il comando `npx quasar dev` per avviare il server che ospita la pagina web.
  - Avvare il backend presente in "Web Page".
