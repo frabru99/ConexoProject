@@ -10,10 +10,20 @@
           aria-label="Menu"
           @click="toggleLeftDrawer"
         />
-        <q-toolbar-title>
-          <img src="src/assets/trace.svg" width="100px" height="100px">
+        <q-toolbar-title class="q-mx-auto">
+          <img src="src/assets/trace.svg" width="100px" height="100px" alt="Logo">
         </q-toolbar-title>
+
+        <div class="q-mb-md">
+      
+          <img src="public/icons/webex-seeklogo.png" width="170px" height="auto" alt="Webex" class="q-mr-xs" />
+          
+        </div>
+
+        
       </q-toolbar>
+
+      
     </q-header>
 
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
@@ -68,3 +78,23 @@ function handleSelect(title) {
   selectedTitle.value = title
 }
 </script>
+
+
+<style>
+
+.q-mb-md {
+  margin-bottom: 16px; /* Modifica il valore del margine secondo necessità */
+  margin-right: 16px;
+  margin-top: 10px;
+  
+
+}
+
+
+/* Aggiungi classi di allineamento per centrare il testo nella toolbar */
+.text-right {
+  text-align: right;
+  margin-top: 30px;
+  margin-right: 50px;
+}
+</style>

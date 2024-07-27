@@ -1,5 +1,8 @@
 <template>
   <div class="q-pa-md">
+    <div  class="row items-center q-gutter-sm" >
+    <q-btn label="Apri" @click="openAllCabinets" class="col-auto" style="background: #67c7f0"/>
+    <q-btn label="Chiudi" @click="closeAllCabinets" class="col-auto"  style="background: #ec6676"/>
     <q-select
       v-model="selectedStatus"
       :options="statusOptions"
@@ -8,13 +11,20 @@
       dense
       default="All"
       @update:model-value="filterByStatus"
-    />
+      class="col"
+    /></div>
+    
+    <div>
+          <p> 
+
+          </p>
+    </div>
     <div v-for="(cabinetRows, idCabinet) in filteredRows" :key="idCabinet" class="mb-4">
       <div v-if="idCabinet === 0" style="
       font-size: 24px; 
       padding: 20px;
-      background-color: #ffdddd; 
-      border: 2px solid #f99; 
+      background-color: #67c7f0; 
+      border: 2px solid #67c; 
       border-radius: 10px; 
       text-align: center; 
       max-width: 600px; 
@@ -24,7 +34,14 @@
         <p style="font-weight:bold; color: #333;"> Nessun dispositivo disponibile in questa regione.</p>
       </div>
       <div v-else>
-        <q-expansion-item :label="`Cabinet ${idCabinet}`" icon="folder">
+        <q-expansion-item 
+          ref="expansionItems" 
+          :label="`Cabinet ${idCabinet}`" 
+          v-model="expansionState[idCabinet]"
+          icon="computer"
+        >
+        
+        
           <q-table
             class="my-sticky-virtscroll-table"
             virtual-scroll
@@ -53,8 +70,9 @@
 import { ref, onMounted, watch } from 'vue'
 import axios from 'axios'
 import StatusIndicator from './StatusIndicator.vue'
-import { QSelect, QExpansionItem, QTable, QTd } from 'quasar'
-import io from 'socket.io-client';
+import { QSelect, QExpansionItem, QTable, QTd, QBtn, useQuasar } from 'quasar'
+import io from 'socket.io-client'
+
 
 const headerClasses = "text-center"
 const props = defineProps({
@@ -72,8 +90,10 @@ const columns = [
   { name: 'yearofproduction', label: 'Year Of Prod.', field: 'yearofproduction', sortable: true},
   { name: 'status', label: 'Status', field: 'status', sortable: true},
   { name: 'usedslot', label: 'Used Slot', field: 'usedslot', sortable: true}, 
-  { name: 'devicetype', label: 'Device Type', field: 'devicetype', sortable: true}
+  { name: 'devicetype', label: 'Device Type', field: 'devicetype', sortable: true},
+  { name: 'latest', label: 'Latest update', field: 'timelog', sortable: true}
 ]
+
 
 const rows = ref([])
 const groupedRows = ref({})
@@ -85,8 +105,9 @@ const statusOptions = ref([
     'Inactive',
     'Removed'
 ])
+const expansionState = ref({})
 
-const loadData = async (title) => {
+const loadData = async (title, update) => {
   try {
     const response = await axios.get(`http://192.168.1.14:3000/device/${title}`)
     const data = response.data
@@ -103,11 +124,17 @@ const loadData = async (title) => {
       }, {})
       groupedRows.value = grouped
       filterByStatus()
+      
+      if(update == 0){
+        initializeExpansionState()
+      }
     } else {
       groupedRows.value = [0]
       filteredRows.value = [0]
     }
 
+
+    
     
   } catch (error) {
     console.error('Errore nel recupero dei dati:', error)
@@ -117,44 +144,76 @@ const loadData = async (title) => {
 const filterByStatus = () => {
   if (selectedStatus.value == 'All') {
     filteredRows.value = groupedRows.value
-    console.log(selectedStatus.value)
-    console.log(groupedRows.value)
-    console.log(filteredRows.value)
   } else {
     const filtered = {}
     for (const [key, value] of Object.entries(groupedRows.value)) {
       filtered[key] = value.filter(item => item.status === selectedStatus.value)
     }
-
-   
-    console.log(filtered)
-    
     filteredRows.value = filtered
-
-    console.log(groupedRows.value)
   }
 }
 
+const initializeExpansionState = () => {
+  for (const idCabinet in groupedRows.value) {
+    if (!expansionState.value.hasOwnProperty(idCabinet)) {
+        
+        expansionState.value[idCabinet] = false
+    }
+  }
+}
+
+const openAllCabinets = () => {
+  
+  Object.keys(filteredRows.value).forEach(idCabinet => {
+    if (idCabinet != 0 & expansionState.value[idCabinet] === false) {
+      expansionState.value[idCabinet] = true
+    } 
+  })
+}
+
+//funzione di notifica
+const showNotification = (message) => {
+  const $q = useQuasar()
+  $q.notify({
+    message,
+    color: 'positive',
+    position: 'bottom-right',
+    timeout: 3000,
+    actions: [{ icon: 'close', color: 'white' }]
+  })
+}
+
+
+const closeAllCabinets = () => {
+  
+  Object.keys(filteredRows.value).forEach(idCabinet => {
+    if (idCabinet != 0 & expansionState.value[idCabinet] === true) {
+      expansionState.value[idCabinet] = false
+    } 
+  })
+}
+
+
 onMounted(() => {
-  loadData(props.title)
+  
+  loadData(props.title, 0)
+  
+ 
 
-
-  const socket = io('http://192.168.1.14:3000');
+  const socket = io('http://192.168.1.14:3000')
 
   socket.on('update_data', () => {
-      loadData(props.title); // Ricarica i dati quando si riceve una notifica
-  });
-
-  
-
+    loadData(props.title, 1)
+    showNotification("Aggiornamenti nel POP di " + props.title)
+  })
 })
 
 watch(() => props.title, (newParams) => {
-  if (newParams) {
-    loadData(newParams)
-  }
-
   
+  if (newParams) {
+     
+    loadData(newParams, 0)
+    
+  }
 }, { immediate: true })
 </script>
-

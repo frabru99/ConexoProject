@@ -41,8 +41,6 @@ email = None
 mutex = Lock() 
 
 
-
-
 """ ----- CLASSE CABINET REST ---- 
 
 Utilizza le variabili globali cursor, email e matricola. 
