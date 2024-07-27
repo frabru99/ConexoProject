@@ -29,6 +29,8 @@ Assicurarsi di aver creato il DataBase con gli inserimenti base e che PostGre si
 **Avvio Interfaccia Web**
  - Estrarre il pacchetto Web Application, aprire il cmd e entrare nella cartella di progetto. Eseguire il comando `npm install` per installare tutte le dipendenze
  - Nel cmd, eseguire il comando `npx quasar dev` per avviare il server che ospita la pagina web.
+ - Avvare il backend presente in "Web Page".
+   
    
 
 
