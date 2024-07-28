@@ -29,7 +29,7 @@
     <q-drawer v-model="leftDrawerOpen" show-if-above bordered>
       <q-list>
         <q-item-label header>
-          Esplora i POP.
+          Monitora i POP.
         </q-item-label>
 
         <EsploraRisorse
@@ -39,6 +39,21 @@
           @select="handleSelect"
         />
       </q-list>
+
+      
+      <q-toggle
+      v-model="isDarkMode"
+      color="primary"
+      @update:model-value="toggleDarkMode" 
+      toggle-order="true"
+      class = "toggle"
+      false-value="Dark Mode"
+      true-value="Light Mode"
+      
+
+      />
+
+      
     </q-drawer>
 
     <q-page-container>
@@ -48,20 +63,22 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import EsploraRisorse from 'components/MenuLaterale.vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
 import TablesData from 'components/TablesData.vue'
+import { Dark } from 'quasar'
+
 
 defineOptions({
   name: 'MainLayout'
 })
 
 const linksList = ref([])
-const router = useRouter()
 
-axios.get("http://192.168.1.14:3000/luoghi").then(response => {
+
+axios.get("http://127.0.0.1:3000/luoghi").then(response => {
   linksList.value = response.data
   console.log(linksList.value)
 })
@@ -71,6 +88,16 @@ const leftDrawerOpen = ref(false)
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value
 }
+
+
+
+var toggleDarkMode = () => {
+    
+    Dark.toggle()
+}
+
+
+
 
 const selectedTitle = ref(null)
 
@@ -96,5 +123,10 @@ function handleSelect(title) {
   text-align: right;
   margin-top: 30px;
   margin-right: 50px;
+}
+
+.toggle{
+  position: fixed;
+  bottom: 0;
 }
 </style>

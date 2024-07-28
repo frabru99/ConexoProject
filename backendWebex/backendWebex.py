@@ -345,7 +345,6 @@ class Device(Resource):
 
                     res = result[len(result)-1]
 
-                    
                     slotOccupati=res[0]
                     idCabinet=res[1]
                     sizeDevice=res[2]
@@ -380,7 +379,7 @@ class Device(Resource):
                             cursor.execute("Select p.popPosition FROM POP as P JOIN Cabinet as C on C.idPOP=p.idPOP WHERE C.idCabinet=%s", [idCabinet])
 
                             pos = cursor.fetchone()
-                            requests.get("http://192.168.1.14:3000/notify/"+pos[0]) #notifica
+                            requests.get("http://127.0.0.1:3000/notify/"+pos[0]) #notifica
 
                             return make_response(result, 200)
 
@@ -424,6 +423,8 @@ class Device(Resource):
 
         try:
 
+            
+
             #facciamo query inserimento prima come dispositivo, poi il Log
 
             idDeviceType = 0
@@ -440,58 +441,79 @@ class Device(Resource):
             mutex.acquire()
 
             if email != None and matricola != None:
+
+                cursor.execute("SELECT usedSlot from Device WHERE idCabinet = %s", [data["idCabinet"]]) #Query utile per evitare il reinserimento di più elementi.
+
+                slots = cursor.fetchall()
                 
-                cursor.execute("INSERT INTO Device (serialNumber, sizeDevice, producerDevice, yearProduction, statusDevice, usedSlot, idDeviceType, idEmployee, idCabinet) values (%s, %s, %s, %s, %s, %s, %s, %s, %s)", [data["serial"], data["dimension"], data["producer"], data["yearOfProduction"], data["statusDevice"], data["usedSlot"], str(idDeviceType), str(matricola), data["idCabinet"]]) 
-            
-                if cursor.rowcount != 0:
+                if len(slots) != 0:
 
-                    cursor.execute("SELECT max(idDevice) from Device")
+                    usedSlots = [slots[i][0] for i in range(len(slots))]
+                    print("USED SLOT:")
+                    print(usedSlots)
 
-                    idDevice = cursor.fetchone()[0]
 
-                    print(idDevice)
 
-                    cursor.execute('SELECT slotOccupati FROM Log WHERE timeLog = (SELECT MAX(timeLog) FROM Log WHERE idCabinet = %s)', [data["idCabinet"]])
+                if data["usedSlot"] not in usedSlots: 
 
-                    res = cursor.fetchone()
+                    cursor.execute("INSERT INTO Device (serialNumber, sizeDevice, producerDevice, yearProduction, statusDevice, usedSlot, idDeviceType, idEmployee, idCabinet) values (%s, %s, %s, %s, %s, %s, %s, %s, %s)", [data["serial"], data["dimension"], data["producer"], data["yearOfProduction"], data["statusDevice"], data["usedSlot"], str(idDeviceType), str(matricola), data["idCabinet"]]) 
+                
+                    if cursor.rowcount != 0:
 
-                    occupiedSlot=""
+                        cursor.execute("SELECT max(idDevice) from Device")
 
-                    if res != None:
-                        occupiedSlot = str(res[0] + int(data["dimension"]))
+                        idDevice = cursor.fetchone()[0]
+
+                        print(idDevice)
+
+                        cursor.execute('SELECT slotOccupati FROM Log WHERE timeLog = (SELECT MAX(timeLog) FROM Log WHERE idCabinet = %s)', [data["idCabinet"]])
+
+                        res = cursor.fetchone()
+
+                        occupiedSlot=""
+
+                        if res != None:
+                            occupiedSlot = str(res[0] + int(data["dimension"]))
+                        else:
+                            occupiedSlot = str(int(data["dimension"]))
+
+                        print(occupiedSlot)
+
+                        if data["updatedDevice"] == None:
+
+                            current_timestamp = datetime.now()# prende data e ora       
+                            cursor.execute("INSERT INTO Log (dateLog, timeLog, slotOccupati, idDevice, idEmployee, idCabinet, idAction)  values (%s, %s, %s, %s, %s, %s, %s)", [date.today(), current_timestamp.strftime("%Y-%m-%d %H:%M:%S"), occupiedSlot, str(idDevice), str(matricola), data["idCabinet"], 1])
+
+                        else:
+                            current_timestamp = datetime.now()# prende data e ora       
+                            cursor.execute("INSERT INTO Log (dateLog, timeLog, slotOccupati, idDevice, idEmployee, idCabinet, idAction, idDeviceReplaced)  values (%s, %s, %s, %s, %s, %s, %s, %s)", [date.today(), current_timestamp.strftime("%Y-%m-%d %H:%M:%S"), occupiedSlot, str(idDevice), str(matricola), data["idCabinet"], 3, data["updatedDevice"]])
+
+
+
+                        response = "Device inserted correctly."
+
+                        conn.commit()
+                        mutex.release()
+
+                        cursor.execute("Select p.popPosition FROM POP as P JOIN Cabinet as C on C.idPOP=p.idPOP WHERE C.idCabinet=%s", [data["idCabinet"]])
+
+                        pos = cursor.fetchone()
+                        requests.get("http://127.0.0.1:3000/notify/"+pos[0]) #notifica
+                        return make_response(response, 200)
+                        
                     else:
-                        occupiedSlot = str(int(data["dimension"]))
-
-                    print(occupiedSlot)
-
-                    if data["updatedDevice"] == None:
-
-                        current_timestamp = datetime.now()# prende data e ora       
-                        cursor.execute("INSERT INTO Log (dateLog, timeLog, slotOccupati, idDevice, idEmployee, idCabinet, idAction)  values (%s, %s, %s, %s, %s, %s, %s)", [date.today(), current_timestamp.strftime("%Y-%m-%d %H:%M:%S"), occupiedSlot, str(idDevice), str(matricola), data["idCabinet"], 1])
-
-                    else:
-                        current_timestamp = datetime.now()# prende data e ora       
-                        cursor.execute("INSERT INTO Log (dateLog, timeLog, slotOccupati, idDevice, idEmployee, idCabinet, idAction, idDeviceReplaced)  values (%s, %s, %s, %s, %s, %s, %s, %s)", [date.today(), current_timestamp.strftime("%Y-%m-%d %H:%M:%S"), occupiedSlot, str(idDevice), str(matricola), data["idCabinet"], 3, data["updatedDevice"]])
+                        conn.rollback()
+                        response = "An error is occured."
+                        mutex.release()
+                        return make_response(response, 500)
 
 
-
-                    response = "Device inserted correctly."
-
-                    conn.commit()
-                    mutex.release()
-
-                    cursor.execute("Select p.popPosition FROM POP as P JOIN Cabinet as C on C.idPOP=p.idPOP WHERE C.idCabinet=%s", [data["idCabinet"]])
-
-                    pos = cursor.fetchone()
-                    requests.get("http://192.168.1.14:3000/notify/"+pos[0]) #notifica
-                    return make_response(response, 200)
-                    
                 else:
-                    conn.rollback()
-                    response = "An error is occured."
-                    mutex.release()
-                    return make_response(response, 500)
-                   
+                        conn.rollback()
+                        response = "An error is occured."
+                        mutex.release()
+                        return make_response(response, 500)
+
 
 
             else:
@@ -620,7 +642,7 @@ class Simulate_Inactivate(Resource):
             cursor.execute("SELECT p.popPosition FROM POP As P JOIN Cabinet as C on C.idPOP = P.idPOP WHERE C.idCabinet = (SELECT DISTINCT L.idCabinet FROM LOG as L WHERE l.idDevice = %s)", [device_id])
 
             pos = cursor.fetchone()
-            requests.get("http://192.168.1.14:3000/notify/" + pos[0]) #notifica
+            requests.get("http://127.0.0.1:3000/notify/" + pos[0]) #notifica
             return make_response(response, 200)
 
         except (Exception, psycopg2.DatabaseError, TypeError) as error:

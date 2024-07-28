@@ -1,5 +1,6 @@
 <template>
   <div class="q-pa-md">
+    <h3 class ="propstitle">{{ props.title }}</h3>
     <div  class="row items-center q-gutter-sm" >
     <q-btn label="Apri" @click="openAllCabinets" class="col-auto" style="background: #67c7f0"/>
     <q-btn label="Chiudi" @click="closeAllCabinets" class="col-auto"  style="background: #ec6676"/>
@@ -61,8 +62,12 @@
             </template>
           </q-table>
         </q-expansion-item>
+        <p>
+
+        </p>
       </div>
     </div>
+
   </div>
 </template>
 
@@ -111,7 +116,7 @@ const expansionState = ref({})
 
 const loadData = async (title, update) => {
   try {
-    const response = await axios.get(`http://192.168.1.14:3000/device/${title}`)
+    const response = await axios.get(`http://127.0.0.1:3000/device/${title}`)
     const data = response.data
 
     if (data[0] !== 0) {
@@ -230,7 +235,7 @@ onMounted(() => {
   
  
 
-  const socket = io('http://192.168.1.14:3000')
+  const socket = io('http://127.0.0.1:3000')
 
   socket.on('update_data', (data) => {
     loadData(props.title, 1)
@@ -251,7 +256,17 @@ watch(() => props.title, (newParams) => {
 
 
 <style>
+  .propstitle {
+    font-size: 40px;
+    font-weight: bold;
+    text-align: left;
+    margin-bottom: 25px;
+    margin-top: 8px;
+  }
   .my-custom-notification .q-notification__inner {
       font-size: 100px;
    }
+
+   
+   
 </style>
