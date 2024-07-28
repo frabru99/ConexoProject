@@ -338,17 +338,22 @@ class Device(Resource):
 
                    
                 
-                    cursor.execute("SELECT L.slotOccupati, D.idCabinet, D.sizeDevice FROM Log AS L JOIN Device AS D ON  D.idCabinet = L.idCabinet WHERE D.idCabinet = (SELECT idCabinet FROM Device WHERE idDevice=%s) AND L.timeLog = (SELECT MAX(timeLog) FROM Log where idCabinet=D.idCabinet)", [str(idDevice)]) #mi prendo la dimensione del cabinet 
+                    cursor.execute("SELECT D.idDevice, D.idCabinet, D.sizeDevice, L.timeLog FROM Log AS L JOIN Device AS D ON D.idDevice = L.idDevice WHERE D.idCabinet = (SELECT idCabinet FROM Device WHERE idDevice=%s) AND L.timeLog = (SELECT MAX(l2.timeLog) FROM Log as l2 where idDevice=%s) ", [str(idDevice), str(idDevice)]) #mi prendo la dimensione del cabinet 
 
 
-                    result = cursor.fetchall()
+                    result = cursor.fetchone()
 
-                    res = result[len(result)-1]
+                    print(result)
+                    res = result
 
-                    slotOccupati=res[0]
+                    
                     idCabinet=res[1]
                     sizeDevice=res[2]
                     
+
+                    cursor.execute("SELECT slotOccupati FROM LOG WHERE idcabinet=%s and timelog = (SELECT MAX(timelog) FROM Log where idCabinet = %s)", [idCabinet, idCabinet])
+
+                    slotOccupati=cursor.fetchone()[0]
 
                     newOccupied = slotOccupati-sizeDevice 
 
@@ -446,6 +451,7 @@ class Device(Resource):
 
                 slots = cursor.fetchall()
                 
+                usedSlots = []
                 if len(slots) != 0:
 
                     usedSlots = [slots[i][0] for i in range(len(slots))]

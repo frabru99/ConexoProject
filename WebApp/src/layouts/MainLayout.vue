@@ -44,13 +44,11 @@
       <q-toggle
       v-model="isDarkMode"
       color="primary"
-      @update:model-value="toggleDarkMode" 
-      toggle-order="true"
+      @update:model-value="toggleDarkMode"
+      toggle-order="tf"
       class = "toggle"
-      false-value="Dark Mode"
-      true-value="Light Mode"
-      
-
+      indeterminate-value="Toggle Dark Mode"
+      :label="isDarkMode ? 'Light Mode' : 'Dark Mode'"
       />
 
       
@@ -63,7 +61,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import EsploraRisorse from 'components/MenuLaterale.vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
@@ -89,13 +87,15 @@ function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value
 }
 
+const isDarkMode = ref(false)
 
 
-var toggleDarkMode = () => {
+const toggleDarkMode = () => {
     
     Dark.toggle()
-}
+    
 
+}
 
 
 
@@ -104,6 +104,9 @@ const selectedTitle = ref(null)
 function handleSelect(title) {
   selectedTitle.value = title
 }
+
+
+
 </script>
 
 
@@ -128,5 +131,9 @@ function handleSelect(title) {
 .toggle{
   position: fixed;
   bottom: 0;
+}
+
+.q-toggle__thumb .absolute .flex .flex-center .no-wrap{
+flex: none;
 }
 </style>

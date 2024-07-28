@@ -32,7 +32,7 @@
       margin: 20px auto; 
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       ">
-        <p style="font-weight:bold; color: #333;"> Nessun dispositivo disponibile in questa regione.</p>
+        <p style="font-weight:bold; color: #333;"> Nessun dispositivo disponibile in questo POP.</p>
       </div>
       <div v-else>
         <q-expansion-item 
@@ -61,6 +61,11 @@
               </q-td>
             </template>
           </q-table>
+          <div class="diagnostics"  v-if="diagnosticData[idCabinet]">
+            
+              <p v-for="(value, key) in diagnosticData[idCabinet]" :key="key">{{ key }} {{ value }}</p>
+            
+          </div>
         </q-expansion-item>
         <p>
 
@@ -68,6 +73,7 @@
       </div>
     </div>
 
+       
   </div>
 </template>
 
@@ -77,6 +83,7 @@ import axios from 'axios'
 import StatusIndicator from './StatusIndicator.vue'
 import { QSelect, QExpansionItem, QTable, QTd, QBtn, Notify} from 'quasar'
 import io from 'socket.io-client'
+
 
 
 const headerClasses = "text-center"
@@ -112,11 +119,17 @@ const statusOptions = ref([
     'Removed'
 ])
 const expansionState = ref({})
+const diagnosticData = ref({})
+const series = ref({})
+
+
+
 
 
 const loadData = async (title, update) => {
   try {
     const response = await axios.get(`http://127.0.0.1:3000/device/${title}`)
+    const diagnosticResponse = await axios.get(`http://127.0.0.1:3000/cabinet/${title}`)
     const data = response.data
 
     if (data[0] !== 0) {
@@ -144,9 +157,17 @@ const loadData = async (title, update) => {
             sortedAcc[key] = acc[key];
         }
 
+        
+
         return sortedAcc
       }, {})
       groupedRows.value = grouped
+
+      //per i dati di diagnostica....
+      for (const idCabinet of Object.keys(grouped)) {
+          diagnosticData.value[idCabinet] = diagnosticResponse.data[idCabinet]
+
+      }
       
       filterByStatus()
       
@@ -159,7 +180,6 @@ const loadData = async (title, update) => {
     }
 
 
-    
     
   } catch (error) {
     console.error('Errore nel recupero dei dati:', error)
@@ -252,6 +272,11 @@ watch(() => props.title, (newParams) => {
     
   }
 }, { immediate: true })
+
+
+      
+      
+  
 </script>
 
 
@@ -267,6 +292,13 @@ watch(() => props.title, (newParams) => {
       font-size: 100px;
    }
 
+   .diagnostics{
+    font-size:  17px;
+    font-weight: bold;
+    margin-top: 20px;
+    margin-left: 2px;
+   }
+   
    
    
 </style>
