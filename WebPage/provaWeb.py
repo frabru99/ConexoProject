@@ -55,7 +55,7 @@ class Device(Resource):
     
         cursor = conn.cursor()
         print(position)
-        cursor.execute("SELECT D.idDevice, D.serialNumber, D.sizeDevice, D.producerdevice, D.yearProduction, D.statusDevice, D.usedSlot, DT.deviceType, D.idCabinet, L.timelog, L.iddevicereplaced FROM Device AS D JOIN DeviceType AS DT ON D.idDeviceType=DT.idDeviceType JOIN Log As L on L.idDevice=D.idDevice WHERE D.idCabinet IN (SELECT idCabinet FROM Cabinet AS C JOIN POP AS P ON p.idPOP=C.idPOP WHERE P.popPosition = %s) and L.timelog = (SELECT MAX(l2.timelog) FROM Log as l2 WHERE l2.idDevice = D.idDevice)", [position])
+        cursor.execute("SELECT D.idDevice, D.serialNumber, D.sizeDevice, D.producerdevice, D.yearProduction, D.statusDevice, D.usedSlot, DT.deviceType, D.idCabinet, L.timelog, L.iddevicereplaced, L.idaction FROM Device AS D JOIN DeviceType AS DT ON D.idDeviceType=DT.idDeviceType JOIN Log As L on L.idDevice=D.idDevice WHERE D.idCabinet IN (SELECT idCabinet FROM Cabinet AS C JOIN POP AS P ON p.idPOP=C.idPOP WHERE P.popPosition = %s) and L.timelog = (SELECT MAX(l2.timelog) FROM Log as l2 WHERE l2.idDevice = D.idDevice)", [position])
 
         d = cursor.fetchall()
 
@@ -73,7 +73,8 @@ class Device(Resource):
             "devicetype": device[7],
             "idcabinet": device[8],
             "timelog": device[9],
-            "devicereplaced": device[10]
+            "devicereplaced": device[10],
+            "idaction": device[11]
             } for device in d]
 
         if len(d) == 0:
@@ -198,9 +199,6 @@ def getData(pos):
         updates = cursor.fetchall()
 
        
-
-
-
 
         if len(resp) == 0 and len(all_free)!=0:
             resp = all_free

@@ -91,16 +91,31 @@
       </div>
     </div>
 
+    
+    <div  class="row items-center q-gutter-sm" >
+      <div class="chartscontainer">
+            <canvas :id="'devicePieChart'" class="piechart"></canvas>
+      
+
+      
+            <canvas id="deviceLineChart" class="linechart"></canvas>
+      </div>
+
+    </div>
        
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed} from 'vue'
+import { ref, onMounted, watch} from 'vue'
 import axios from 'axios'
 import StatusIndicator from './StatusIndicator.vue'
 import { QSelect, QExpansionItem, QTable, QTd, QBtn, Notify} from 'quasar'
 import io from 'socket.io-client'
+import { Chart, registerables } from 'chart.js'
+import { Dark } from 'quasar'
+
+Chart.register(...registerables)
 
 
 
@@ -139,9 +154,202 @@ const statusOptions = ref([
 const expansionState = ref({})
 const diagnosticData = ref({})
 const series = ref({})
+let pieChartInstance = null
+let lineChartInstance = null
 
 
 
+
+const updatePieChart = () => {
+  // Inizializza i contatori
+  let totalActiveCount = 0
+  let totalInactiveCount = 0
+  let totalRemovedCount = 0
+  
+
+  // Itera su ogni cabinet e somma i dati
+  for (const [idCabinet, cabinetRows] of Object.entries(filteredRows.value)) {
+    if (idCabinet !== '0') {
+      const activeCount = cabinetRows.filter(item => item.status === 'Active').length
+      const inactiveCount = cabinetRows.filter(item => item.status === 'Inactive').length
+      const removedCount = cabinetRows.filter(item => item.status === 'Removed').length
+
+      totalActiveCount += activeCount
+      totalInactiveCount += inactiveCount
+      totalRemovedCount += removedCount
+    }
+  }
+
+
+  if (pieChartInstance) {
+    pieChartInstance.destroy()
+  }
+
+  //if (totalActiveCount != 0 |  totalInactiveCount!=0){
+    // Crea un solo grafico con i dati aggregati
+    const ctx = document.getElementById('devicePieChart').getContext('2d')
+    pieChartInstance = new Chart(ctx, {
+      type: 'pie',
+      maintainAspectRatio: false,
+      data: {
+        labels: ['Active', 'Inactive', 'Removed'],
+        datasets: [{
+          data: [totalActiveCount, totalInactiveCount, totalRemovedCount],
+          backgroundColor: ['#407d23', '#eaa83d', '#de3323']
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              color: "#5b8ed7",
+              font: {
+                size: 16
+              }
+            },
+            
+            
+          },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                const label = context.label || ''
+                return label + ': ' + context.raw
+              }
+            }
+          }
+        }
+      }
+    })
+  //}
+}
+
+
+const updateLineChart = () => {
+  const { labels, datasets } = prepareLineChartData();
+
+  if (lineChartInstance) {
+    lineChartInstance.destroy();
+  }
+
+  console.log(datasets)
+  const ctx = document.getElementById('deviceLineChart').getContext('2d');
+  lineChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'bottom'
+        },
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              const label = context.dataset.label || '';
+              const value = context.raw || 0;
+              return `${label}: ${value}`;
+            }
+          },
+        }
+      },
+      scales: {
+        x: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Date', // Modifica come necessario
+            color: '#5b8ed7'
+          },
+          grid: {
+            color: '#5b8ed7' // Cambia il colore delle linee della griglia dell'asse X
+          },
+          ticks: {
+            color: '#5b8ed7'
+          }
+        },
+        y: {
+          beginAtZero: true,
+          min: 0,
+          max: 30,
+          stepSize: 1,
+          title: {
+            display: true,
+            text: 'Number of Replaced Device', // Modifica come necessario
+            color: '#5b8ed7'
+          },
+          grid: {
+            color: '#5b8ed7' // Cambia il colore delle linee della griglia dell'asse X
+          },
+          ticks : {
+            color: '#5b8ed7'
+          }
+
+        }
+      }
+    }
+  });
+};
+
+const getRandomColor = () => {
+  const letters = '0123456789ABCDEF';
+  let color = '#';
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+};
+
+
+const prepareLineChartData = () => {
+  const labels = []; // Etichette sull'asse X (ad esempio date)
+  const datasets = [];
+
+  for (const [idCabinet, cabinetRows] of Object.entries(filteredRows.value)) {
+
+    
+    console.log("Coppia")
+    console.log([idCabinet, cabinetRows])
+
+    if (idCabinet !== '0') {
+      // Esempio di preparazione dati
+      const replacedDevices = cabinetRows.filter(item => item.devicereplaced === null & item.idaction === 3 ); // Dispositivi sostituiti
+      
+
+      const dataMap = replacedDevices.reduce((acc, device) => {
+        const date = new Date(device.timelog).toISOString().split('T')[0]; // Ottieni solo la parte della data
+        if (!acc[date]) {
+          acc[date] = 0;
+        }
+        acc[date]++;
+        return acc;
+      }, {});
+
+
+      const data = Object.keys(dataMap).map(date => ({
+        x: date,
+        y: dataMap[date] || 0
+      }));
+
+      data.sort((a, b) => new Date(a.x) - new Date(b.x));
+
+      datasets.push({
+        label: `Cabinet ${idCabinet}`,
+        data: data,
+        fill: true,
+        borderColor: getRandomColor(), // Funzione per generare colori casuali
+        tension: 0.5
+      });
+    }
+  }
+
+  return { labels, datasets };
+};
 
 
 const loadData = async (title, update) => {
@@ -192,13 +400,15 @@ const loadData = async (title, update) => {
       if(update == 0){
         initializeExpansionState()
       }
+      
     } else {
       groupedRows.value = [0]
       filteredRows.value = [0]
     }
 
-
     
+    updatePieChart()
+    updateLineChart()
   } catch (error) {
     console.error('Errore nel recupero dei dati:', error)
   }
@@ -317,7 +527,33 @@ watch(() => props.title, (newParams) => {
     margin-left: 20px;
     margin-right: 20px;
    }
-   
+
+  .piechart {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .linechart{
+    width: 100% !important;
+    height: 100% !important;
+    margin-left: 20%;
+  }
+
+
+  .chartscontainer{
+    position: relative;
+    width: auto;
+    max-width: auto; /* Imposta la larghezza massima */
+    height: 400px; /* Imposta l'altezza fissa per il grafico */
+    padding-bottom: 0px;
+    margin-left: 100px;
+    
+    display: flex;
+    justify-content: space-around;
+    margin-top: 200px;
+  }
+  
+    
    
    
 </style>
