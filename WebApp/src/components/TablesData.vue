@@ -314,8 +314,8 @@ watch(() => props.title, (newParams) => {
     font-size:  17px;
     font-weight: bold;
     margin-top: 20px;
-    margin-left: 15px;
-    margin-right: 15px;
+    margin-left: 20px;
+    margin-right: 20px;
    }
    
    

@@ -92,7 +92,7 @@ class Cabinet(Resource):
 
     def get(self, pos):
 
-        keys, freeSpace, resp = getData(pos)
+        keys, freeSpace, resp, active, inactive, removed, updates = getData(pos)
 
         response = {}
         for key in keys:
@@ -101,12 +101,12 @@ class Cabinet(Resource):
 
 
             info_for_cabinet = {
-                "Spazio totale restante: ": next((space[1] for space in freeSpace if space[0] == key), None), #se non vale la condizione gli affido None, sennò non andrebbe avanti
+                "Spazio totale restante: ": next((space[1] for space in freeSpace if space[0] == key), '-'), #se non vale la condizione gli affido None, sennò non andrebbe avanti
                 "Spazio massimo contiguo restante: ": resp.get(key, 0),
-                "Totali Rimossi: ": "Numero totali rimossi",
-                "Totali Attivi: ": "Numero totali attivi",
-                "Totali Inattivi: ": "Numero totali inattivi",
-                "Ultimo Aggiornamento: ": "timeLog - idDispositivo"
+                "Totali Rimossi: ": next((rem[1] for rem in removed if rem[0] == key), '-'),
+                "Totali Attivi: ": next((att[1] for att in active if att[0] == key), '-'),
+                "Totali Inattivi: ": next((inatt[1] for inatt in inactive if inatt[0] == key), '-'),
+                "Ultimo Aggiornamento: ": next((str(upd[1]) + " - ID Device: " + str(upd[2]) for upd in updates if upd[0] == key), '-')
             }
 
             if key not in response.keys():
@@ -124,13 +124,15 @@ class Notification(Resource):
         
         socketio.emit('update_data', {'position': position}) #alla get, emissione sulla porta, sui cui sarà in ascolto la webApp
 
+
+
 def getData(pos):
 
 
     #PER LA MASSIMA SIMENSIONE DISPONIBILE
         #seleziono i dispositivi restanti
         cursor = conn.cursor()
-        cursor.execute("SELECT C.idCabinet, C.numofslot - L.slotoccupati AS freeSpace FROM Cabinet as C  JOIN Log as L on L.idCabinet=C.idCabinet JOIN POP AS P on P.idPOP=C.idPOP WHERE L.timelog IN (SELECT MAX (l2.timelog) FROM Log as l2 WHERE C.idCabinet = l2.idCabinet) and P.popposition = %s", [pos])
+        cursor.execute("SELECT C.idCabinet, C.numofslot - L.slotoccupati AS freeSpace FROM Cabinet as C  JOIN Log as L on L.idCabinet=C.idCabinet JOIN POP AS P on P.idPOP=C.idPOP JOIN Device D ON C.idCabinet=D.idCabinet WHERE L.idlog IN (SELECT MAX (l2.idlog) FROM Log as l2 WHERE C.idCabinet = l2.idCabinet) and P.popposition = %s GROUP BY C.idCabinet, C.numofslot - L.slotoccupati", [pos])
         
         freeSpace = cursor.fetchall()
 
@@ -173,12 +175,39 @@ def getData(pos):
 
         resp = check_space_for_cabinet(listEffective, dictionary_max_dimensions) #dizionario che contiene i massimi spazi contigui restati
 
+        #Per i totali ATTIVI 
+        cursor.execute("SELECT D.idCabinet, COUNT(D.idDevice) from Device as D JOIN Cabinet as C on C.idCabinet = D.idCabinet Join POP AS P on C.idPOP = P.idPOP WHERE D.statusdevice = 'Active' and P.popPosition=%s GROUP BY D.idCabinet", [pos]) 
+
+        active= cursor.fetchall()
+
+        #Per i totali INATTIVI
+
+        cursor.execute("SELECT D.idCabinet, COUNT(D.idDevice) from Device as D JOIN Cabinet as C on C.idCabinet = D.idCabinet Join POP AS P on C.idPOP = P.idPOP WHERE D.statusdevice = 'Inactive' and P.popPosition=%s GROUP BY D.idCabinet", [pos]) 
+
+        inactive = cursor.fetchall()
+
+        #Per i totali RIMOSSI
+        cursor.execute("SELECT D.idCabinet, COUNT(D.idDevice) from Device as D JOIN Cabinet as C on C.idCabinet = D.idCabinet Join POP AS P on C.idPOP = P.idPOP WHERE D.statusdevice = 'Removed' and P.popPosition=%s GROUP BY D.idCabinet", [pos]) 
+
+        removed= cursor.fetchall()
+
+        #Per l'ultimo aggiornamento
+
+        cursor.execute("SELECT DISTINCT C.idCabinet, L.timelog, L.idDevice from Log as l JOIN Cabinet as C on C.idCabinet = L.idCabinet Join POP as P on C.idPOP=P.idPOP WHERE p.popPosition = %s AND L.timelog = (SELECT MAX(l2.timelog) FROM Log l2 WHERE l2.idCabinet = C.idCabinet ) ORDER BY C.idCabinet", [pos])
+
+        updates = cursor.fetchall()
+
+       
+
+
+
+
         if len(resp) == 0 and len(all_free)!=0:
             resp = all_free
         elif len(resp) != 0 and len(all_free) != 0:
             resp = {**resp, **all_free}
 
-        return keys, freeSpace, resp
+        return keys, freeSpace, resp, active, inactive, removed, updates
 
 
 #funzione di utilità sorting key

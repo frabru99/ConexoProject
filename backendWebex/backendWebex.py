@@ -351,7 +351,7 @@ class Device(Resource):
                     sizeDevice=res[2]
                     
 
-                    cursor.execute("SELECT slotOccupati FROM LOG WHERE idcabinet=%s and timelog = (SELECT MAX(timelog) FROM Log where idCabinet = %s)", [idCabinet, idCabinet])
+                    cursor.execute("SELECT slotOccupati FROM LOG JOIN  WHERE idcabinet=%s and timelog = (SELECT MAX(timelog) FROM Log where idCabinet = %s)", [idCabinet, idCabinet])
 
                     slotOccupati=cursor.fetchone()[0]
 
