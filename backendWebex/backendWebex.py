@@ -574,40 +574,47 @@ class Employee(Resource):
             global matricola
 
 
-            data = request.get_json()
-            print(data)
-
-            try:
-                mat = data["matricola"]
-                Email = data["email"]
+            if email == None and matricola == None:
+                data = request.get_json()
+                print(data)
 
                 try:
-                    cursor.execute("SELECT idEmployee, email FROM Employee WHERE (idEmployee = %s AND email = %s)", [mat, Email])
+                    mat = data["matricola"]
+                    Email = data["email"]
 
-                    result = cursor.fetchall()
+                    try:
+                        cursor.execute("SELECT idEmployee, email FROM Employee WHERE (idEmployee = %s AND email = %s)", [mat, Email])
 
-                    print(result)
-                    
-                    if len(result) != 0: #allora sono presente nel db, metto i dati
+                        result = cursor.fetchall()
 
-                        matricola=mat
-                        email=Email
+                        print(result)
+                        
+                        if len(result) != 0: #allora sono presente nel db, metto i dati
 
-                        response = "Login successful."
-                        return make_response(response, 200)
+                            matricola=mat
+                            email=Email
 
-                    else:
-                        response = "The user does not exist."
-                        return make_response(response, 404)
+                            response = "Login successful."
+                            thread = Thread(target=checkTime)
+                            thread.start()
+                            return make_response(response, 200)
 
-                except (psycopg2.Error):
-                    cursor.close()
+                        else:
+                            response = "The user does not exist."
+                            return make_response(response, 404)
+
+                    except (psycopg2.Error):
+                        cursor.close()
 
 
-            except (Exception, psycopg2.DatabaseError, TypeError) as error:
-                print(error)
+                except (Exception, psycopg2.DatabaseError, TypeError) as error:
+                    print(error)
+                    response = "An error is occured."
+                    return make_response(response, 500)
+
+            else:
                 response = "An error is occured."
-                return make_response(response, 500)
+                return make_response(response, 501)
 
 
 #Simulazione inattività/attività dispositivo.
@@ -671,17 +678,17 @@ def checkTime():
     global matricola
     global mutex
 
-    while True:
-        if email != None and matricola != None:
-            time.sleep(1800)
+    
+    if email != None and matricola != None:
+        time.sleep(1800)
 
-            mutex.acquire()
+        mutex.acquire()
 
-            email=None
-            matricola=None
+        email=None
+        matricola=None
 
-            print("Sessione terminata.")
-            mutex.release()
+        print("Sessione terminata.")
+        mutex.release()
 
     
 
@@ -693,7 +700,6 @@ api.add_resource(Simulate_Inactivate, '/simulate/<int:selector>/<int:device_id>'
 
 
 if __name__ == '__main__':
-    thread = Thread(target=checkTime)
-    thread.start()
+    
     app.run(host = "0.0.0.0", port=4000) #il parametro serve per far runnare l'app sull'IP Address
 

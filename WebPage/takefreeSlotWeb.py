@@ -32,6 +32,7 @@ def check_space_for_cabinet(list, cabinet_max_sizes):
             id_cabinets.append(cabinet_id)
 
     
+    
     for id in id_cabinets:
 
 
@@ -88,11 +89,11 @@ def check_space_for_cabinet(list, cabinet_max_sizes):
                 else:
                     result[id] = 0
             
+        if(len(contigent) != 0):
+            result[id] = max(contigent)
 
 
-
-    if(len(contigent) != 0):
-        result[id] = max(contigent)
+    
         
     print("Result: ")
     print(result)
@@ -120,7 +121,7 @@ Output:
 
 def cleanResult(result, dimension, dictionary_max_dimensions):
     response = []
-    all_free = []
+    all_free = {}
 
     lista = []
 
@@ -146,9 +147,9 @@ def cleanResult(result, dimension, dictionary_max_dimensions):
                 l.append(1)
                 l.append(dimension)
                 l.append(dimension)
-                all_free.append(l)
+                all_free[key]= dictionary_max_dimensions [key]
             else:
-                all_free.append(dictionary_max_dimensions[key]) #Posso usare questa funzione anche per lo scopo di capire il massimo spazio contiguo disponibile, passando dimension = 0
+                all_free[key] = dictionary_max_dimensions[key] #Posso usare questa funzione anche per lo scopo di capire il massimo spazio contiguo disponibile, passando dimension = 0
 
         
       

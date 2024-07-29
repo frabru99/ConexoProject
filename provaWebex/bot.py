@@ -221,6 +221,11 @@ def handle_cards(api, incoming_msg):
                 return "*Accesso avvenuto correttamente.*"
             elif response.status_code == 404:
                 return "*L'utente indicato non esiste. Riprovare.*"
+            elif response.status_code == 500:
+                return "*Errore del server, riprovare più tardi.*"
+            elif response.status_code == 501:
+                return "*Accesso già effettuato.*"
+
 
         
 

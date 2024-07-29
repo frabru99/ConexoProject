@@ -61,10 +61,28 @@
               </q-td>
             </template>
           </q-table>
-          <div class="diagnostics"  v-if="diagnosticData[idCabinet]">
+          <div  class="row items-center q-gutter-sm" >
+          
+            <div class="diagnostics"  v-if="diagnosticData[idCabinet]">
             
-              <p v-for="(value, key) in diagnosticData[idCabinet]" :key="key">{{ key }} {{ value }}</p>
+              <p v-for="(value, key) in Object.entries(diagnosticData[idCabinet]).slice(0, 2)" :key="key">{{ value[0]}} {{ value[1] }}</p>
             
+            </div>
+            
+            <div class="diagnostics"  v-if="diagnosticData[idCabinet]">
+
+              <p v-for="(value, key) in Object.entries(diagnosticData[idCabinet]).slice(2, 4)" :key="key">{{ value[0]}} {{ value[1] }}</p>
+
+            </div>
+
+            <div class="diagnostics"  v-if="diagnosticData[idCabinet]">
+
+            <p v-for="(value, key) in Object.entries(diagnosticData[idCabinet]).slice(4, 6)" :key="key">{{ value[0]}} {{ value[1] }}</p>
+
+            </div>
+
+          
+          
           </div>
         </q-expansion-item>
         <p>
@@ -296,7 +314,8 @@ watch(() => props.title, (newParams) => {
     font-size:  17px;
     font-weight: bold;
     margin-top: 20px;
-    margin-left: 2px;
+    margin-left: 15px;
+    margin-right: 15px;
    }
    
    

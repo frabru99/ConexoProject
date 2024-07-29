@@ -96,10 +96,17 @@ class Cabinet(Resource):
 
         response = {}
         for key in keys:
+            
+            
+
 
             info_for_cabinet = {
                 "Spazio totale restante: ": next((space[1] for space in freeSpace if space[0] == key), None), #se non vale la condizione gli affido None, sennò non andrebbe avanti
-                "Spazio massimo contiguo restante: ": resp[key] 
+                "Spazio massimo contiguo restante: ": resp.get(key, 0),
+                "Totali Rimossi: ": "Numero totali rimossi",
+                "Totali Attivi: ": "Numero totali attivi",
+                "Totali Inattivi: ": "Numero totali inattivi",
+                "Ultimo Aggiornamento: ": "timeLog - idDispositivo"
             }
 
             if key not in response.keys():
@@ -166,6 +173,10 @@ def getData(pos):
 
         resp = check_space_for_cabinet(listEffective, dictionary_max_dimensions) #dizionario che contiene i massimi spazi contigui restati
 
+        if len(resp) == 0 and len(all_free)!=0:
+            resp = all_free
+        elif len(resp) != 0 and len(all_free) != 0:
+            resp = {**resp, **all_free}
 
         return keys, freeSpace, resp
 
