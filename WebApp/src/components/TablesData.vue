@@ -92,32 +92,33 @@
     </div>
 
     
-    <div  class="row items-center q-gutter-sm" >
+    
+    <div class="row items-center q-gutter-sm">
       <div class="chartscontainer">
             <canvas :id="'devicePieChart'" class="piechart"></canvas>
-      
-
-      
             <canvas id="deviceLineChart" class="linechart"></canvas>
+            
+            <FloatingBarChart />
       </div>
-
+      <div>
+          <FloatingBarChart  class="floatingchart"/> 
+      </div>
     </div>
        
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch} from 'vue'
+import { ref, onMounted, watch, computed} from 'vue'
 import axios from 'axios'
 import StatusIndicator from './StatusIndicator.vue'
-import { QSelect, QExpansionItem, QTable, QTd, QBtn, Notify} from 'quasar'
+import { QSelect, QExpansionItem, QTable, QTd, QBtn, Notify, colors} from 'quasar'
 import io from 'socket.io-client'
 import { Chart, registerables } from 'chart.js'
-import { Dark } from 'quasar'
+import FloatingBarChart from 'components/FloatingBarChart.vue'
+
 
 Chart.register(...registerables)
-
-
 
 const headerClasses = "text-center"
 const props = defineProps({
@@ -160,6 +161,7 @@ let lineChartInstance = null
 
 
 
+
 const updatePieChart = () => {
   // Inizializza i contatori
   let totalActiveCount = 0
@@ -195,7 +197,7 @@ const updatePieChart = () => {
         labels: ['Active', 'Inactive', 'Removed'],
         datasets: [{
           data: [totalActiveCount, totalInactiveCount, totalRemovedCount],
-          backgroundColor: ['#407d23', '#eaa83d', '#de3323']
+          backgroundColor: ['#8bc5ec', '#3b5c8b', '#c26d76']
         }]
       },
       options: {
@@ -234,7 +236,7 @@ const updateLineChart = () => {
     lineChartInstance.destroy();
   }
 
-  console.log(datasets)
+  
   const ctx = document.getElementById('deviceLineChart').getContext('2d');
   lineChartInstance = new Chart(ctx, {
     type: 'line',
@@ -246,7 +248,10 @@ const updateLineChart = () => {
       responsive: true,
       plugins: {
         legend: {
-          position: 'bottom'
+          position: 'bottom',
+          labels: {
+            color: '#5b8ed7'
+          }
         },
         tooltip: {
           callbacks: {
@@ -276,7 +281,7 @@ const updateLineChart = () => {
         y: {
           beginAtZero: true,
           min: 0,
-          max: 30,
+          max: 20,
           stepSize: 1,
           title: {
             display: true,
@@ -296,13 +301,40 @@ const updateLineChart = () => {
   });
 };
 
+//generazione colori, permette di generare colori nè troppo chiari nè troppo scuri
 const getRandomColor = () => {
-  const letters = '0123456789ABCDEF';
-  let color = '#';
-  for (let i = 0; i < 6; i++) {
-    color += letters[Math.floor(Math.random() * 16)];
-  }
-  return color;
+  const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+  // Funzione per calcolare la luminosità di un colore esadecimale
+  const getLuminanceFromHex = (hex) => {
+    // Rimuove il carattere '#' se presente
+    hex = hex.replace(/^#/, '');
+
+    // Converte i valori esadecimali in RGB
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    // Calcola la luminosità
+    const a = [r, g, b].map(value => {
+      value /= 255;
+      return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+    });
+
+    return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
+  };
+
+  const minLum = 0.3; // Luminosità minima desiderata
+  const maxLum = 0.7; // Luminosità massima desiderata
+  let hexColor, luminance;
+
+  do {
+    // Genera un colore esadecimale casuale
+    hexColor = '#' + [1, 1, 1].map(() => getRandomInt(0, 255).toString(16).padStart(2, '0')).join('');
+    luminance = getLuminanceFromHex(hexColor);
+  } while (luminance < minLum || luminance > maxLum);
+
+  return hexColor.toUpperCase();
 };
 
 
@@ -343,6 +375,7 @@ const prepareLineChartData = () => {
         data: data,
         fill: true,
         borderColor: getRandomColor(), // Funzione per generare colori casuali
+        backgroundColor:  '#6fc2e54c',
         tension: 0.5
       });
     }
@@ -357,8 +390,18 @@ const loadData = async (title, update) => {
     const response = await axios.get(`http://127.0.0.1:3000/device/${title}`)
     const diagnosticResponse = await axios.get(`http://127.0.0.1:3000/cabinet/${title}`)
     const data = response.data
+    
+
+    if (pieChartInstance) {
+      pieChartInstance.destroy()
+    }
+
+    if (lineChartInstance) {
+      lineChartInstance.destroy();
+    }
 
     if (data[0] !== 0) {
+
       const grouped = data.reduce((acc, item) => {
         item.forEach(element => {
           if (!acc[element.idcabinet]) {
@@ -389,6 +432,7 @@ const loadData = async (title, update) => {
       }, {})
       groupedRows.value = grouped
 
+
       //per i dati di diagnostica....
       for (const idCabinet of Object.keys(grouped)) {
           diagnosticData.value[idCabinet] = diagnosticResponse.data[idCabinet]
@@ -396,19 +440,25 @@ const loadData = async (title, update) => {
       }
       
       filterByStatus()
+      updatePieChart();
+      updateLineChart();
+
+      
+       
       
       if(update == 0){
         initializeExpansionState()
       }
+      
       
     } else {
       groupedRows.value = [0]
       filteredRows.value = [0]
     }
 
-    
-    updatePieChart()
-    updateLineChart()
+       
+   
+
   } catch (error) {
     console.error('Errore nel recupero dei dati:', error)
   }
@@ -430,12 +480,13 @@ const filterByStatus = () => {
     }
     filteredRows.value = filtered
   }
+
+  
 }
 
 const initializeExpansionState = () => {
   for (const idCabinet in groupedRows.value) {
     if (!expansionState.value.hasOwnProperty(idCabinet)) {
-        
         expansionState.value[idCabinet] = false
     }
   }
@@ -449,6 +500,8 @@ const openAllCabinets = () => {
     } 
   })
 }
+
+
 
 
 
@@ -484,7 +537,7 @@ onMounted(() => {
  
 
   const socket = io('http://127.0.0.1:3000')
-
+  
   socket.on('update_data', (data) => {
     loadData(props.title, 1)
     showNotification("Aggiornamenti nel POP di " + data.position)
@@ -535,8 +588,9 @@ watch(() => props.title, (newParams) => {
 
   .linechart{
     width: 100% !important;
+    margin-right: 400px;
     height: 100% !important;
-    margin-left: 20%;
+    margin-left: 8%;
   }
 
 

@@ -38,6 +38,7 @@ api = Api(app) #la rendiamo ogetto restful
 matricola = None 
 email = None
 
+
 mutex = Lock() 
 
 

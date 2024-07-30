@@ -146,7 +146,7 @@ def show_remove_update_card(incoming_msg, ipaddress):
 
         data = response.json()
 
-        options = [{"title": elem[0] + " / " + elem[1] + " / " + elem[2] + " / " +  elem[3] + " / "+ str(elem[4]),  "value": elem[4]} for elem in data]
+        options = [{"title": elem[0] + " / " + elem[1] + " / " + elem[2] + " / " +  elem[3] + " / "+ str(elem[5]),  "value": elem[4]} for elem in data]
     
 
 

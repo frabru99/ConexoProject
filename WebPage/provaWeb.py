@@ -91,31 +91,93 @@ class Device(Resource):
 
 class Cabinet(Resource):
 
-    def get(self, pos):
+    def get(self, pos=None, year=None):
 
-        keys, freeSpace, resp, active, inactive, removed, updates = getData(pos)
+        if pos != None and year==None: 
+            keys, freeSpace, resp, active, inactive, removed, updates = getData(pos)
 
-        response = {}
-        for key in keys:
+            response = {}
+            for key in keys:
+                
+                #per lo spazio totale
+
+                spaceRes = ""
+                for space in freeSpace:
+                    if(space[0] == key):
+                        spaceRes = str(space[1]) + " / " + str(space [2]) 
+
+
+
+                info_for_cabinet = {
+                    "Spazio totale restante: ": spaceRes, #se non vale la condizione gli affido None, sennò non andrebbe avanti
+                    "Spazio massimo contiguo restante: ": resp.get(key, 0),
+                    "Totali Rimossi: ": next((rem[1] for rem in removed if rem[0] == key), '-'),
+                    "Totali Attivi: ": next((att[1] for att in active if att[0] == key), '-'),
+                    "Totali Inattivi: ": next((inatt[1] for inatt in inactive if inatt[0] == key), '-'),
+                    "Ultimo Aggiornamento: ": next((str(upd[1]) + " - ID Device: " + str(upd[2]) for upd in updates if upd[0] == key), '-')
+                }
+
+                if key not in response.keys():
+                    response[key] = info_for_cabinet
+
+            return make_response(response, 200)
             
+        elif pos != None and year != None:
             
+            months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+            keys = ["Router", "Switch", "Firewall", "PowerSupply"]
+            cursor = conn.cursor()
+            #Prendiamo i device inseriti per quell'anno
+            cursor.execute("SELECT TD.deviceType, COUNT(L.idAction), to_char(l.datelog, 'Month'), P.popPosition AS Month FROM Log L  JOIN Device D ON D.idDevice=L.idDevice JOIN devicetype TD ON D.idDeviceType=TD.idDeviceType JOIN Cabinet C ON L.idCabinet=C.idCabinet join POP as P ON C.idPOP = P.idPOP WHERE (L.idAction = '1' OR L.idAction ='4' OR (L.idAction='3' AND l.iddevicereplaced IS NOT NULL)) and D.statusDevice != 'Removed' and date_part('year', l.timelog) =%s and P.popPosition =%s GROUP BY TD.deviceType, to_char(l.datelog, 'Month'), P.popPosition", [year, pos])
 
+            insert = cursor.fetchall()
 
-            info_for_cabinet = {
-                "Spazio totale restante: ": next((space[1] for space in freeSpace if space[0] == key), '-'), #se non vale la condizione gli affido None, sennò non andrebbe avanti
-                "Spazio massimo contiguo restante: ": resp.get(key, 0),
-                "Totali Rimossi: ": next((rem[1] for rem in removed if rem[0] == key), '-'),
-                "Totali Attivi: ": next((att[1] for att in active if att[0] == key), '-'),
-                "Totali Inattivi: ": next((inatt[1] for inatt in inactive if inatt[0] == key), '-'),
-                "Ultimo Aggiornamento: ": next((str(upd[1]) + " - ID Device: " + str(upd[2]) for upd in updates if upd[0] == key), '-')
+            
+            cursor.execute("SELECT TD.deviceType, COUNT(L.idAction), to_char(l.datelog, 'Month'), P.popPosition AS Month FROM Log L  JOIN Device D ON D.idDevice=L.idDevice JOIN devicetype TD ON D.idDeviceType=TD.idDeviceType JOIN Cabinet C ON L.idCabinet=C.idCabinet join POP as P ON C.idPOP = P.idPOP  WHERE (L.idAction = '2' OR (L.idAction='3' AND l.iddevicereplaced IS NULL))  and date_part('year', l.timelog) =%s and P.popPosition =%s GROUP BY TD.deviceType, to_char(l.datelog, 'Month'), P.popPosition", [year, pos])
+
+            remove = cursor.fetchall()
+
+            response  = {}
+
+            response = {
+                "inserted": {month: [0] * len(keys) for month in months},
+                "removed": {month: [0] * len(keys) for month in months}
             }
 
-            if key not in response.keys():
-                response[key] = info_for_cabinet
+            
+
+            # Inserisci i dati nel dizionario "inserted"
+            for device_type, count, month, position in insert:
+                print(device_type)
+                print(count)
+                print(month)
+                if month.strip() in response["inserted"]:
+                    
+                    idx = device_type_index(device_type, keys)
+                    print("idx: " + str(idx))
+                    if idx != -1:
+                        response["inserted"][month.strip()][idx] = count
+
+            # Inserisci i dati nel dizionario "removed"
+            for device_type, count, month, position in remove:
+                if month.strip() in response["removed"]:
+                    idx = device_type_index(device_type, keys)
+                    if idx != -1:
+                        response["removed"][month.strip()][idx] = - count
+
+
+            print(response)
+            return make_response(response, 200)
 
 
 
-        return make_response(response, 200)
+def device_type_index(device_type, keys):
+    try:
+        return keys.index(device_type)
+    except ValueError:
+        return -1  # Tipo di dispositivo non trovato
+            
+
             
 
 
@@ -133,7 +195,7 @@ def getData(pos):
     #PER LA MASSIMA SIMENSIONE DISPONIBILE
         #seleziono i dispositivi restanti
         cursor = conn.cursor()
-        cursor.execute("SELECT C.idCabinet, C.numofslot - L.slotoccupati AS freeSpace FROM Cabinet as C  JOIN Log as L on L.idCabinet=C.idCabinet JOIN POP AS P on P.idPOP=C.idPOP JOIN Device D ON C.idCabinet=D.idCabinet WHERE L.idlog IN (SELECT MAX (l2.idlog) FROM Log as l2 WHERE C.idCabinet = l2.idCabinet) and P.popposition = %s GROUP BY C.idCabinet, C.numofslot - L.slotoccupati", [pos])
+        cursor.execute("SELECT C.idCabinet, C.numofslot - L.slotoccupati, C.numOfSlot AS freeSpace FROM Cabinet as C  JOIN Log as L on L.idCabinet=C.idCabinet JOIN POP AS P on P.idPOP=C.idPOP JOIN Device D ON C.idCabinet=D.idCabinet WHERE L.idlog IN (SELECT MAX (l2.idlog) FROM Log as l2 WHERE C.idCabinet = l2.idCabinet) and P.popposition = %s GROUP BY C.idCabinet, C.numofslot - L.slotoccupati", [pos])
         
         freeSpace = cursor.fetchall()
 
@@ -219,7 +281,7 @@ def sorting_key(item):
 api.add_resource(POP, "/luoghi")
 api.add_resource(Device, "/device/<string:position>")
 api.add_resource(Notification, "/notify/<string:position>")
-api.add_resource(Cabinet, "/cabinet/<string:pos>")
+api.add_resource(Cabinet, "/cabinet/<string:pos>", "/cabinet/<string:pos>/<int:year>")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000, debug=True)

@@ -64,14 +64,14 @@ const statusText = computed(() => {
 }
 
 .status-active {
-  background-color: green;
+  background-color: #8bc5ec;
 }
 
 .status-removed {
-  background-color: red;
+  background-color: #c26d76;
 }
 
 .status-inactive {
-  background-color: orange;
+  background-color: #3b5c8b;
 }
 </style>
