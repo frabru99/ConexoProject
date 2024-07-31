@@ -128,7 +128,7 @@ class Cabinet(Resource):
             keys = ["Router", "Switch", "Firewall", "PowerSupply"]
             cursor = conn.cursor()
             #Prendiamo i device inseriti per quell'anno
-            cursor.execute("SELECT TD.deviceType, COUNT(L.idAction), to_char(l.datelog, 'Month'), P.popPosition AS Month FROM Log L  JOIN Device D ON D.idDevice=L.idDevice JOIN devicetype TD ON D.idDeviceType=TD.idDeviceType JOIN Cabinet C ON L.idCabinet=C.idCabinet join POP as P ON C.idPOP = P.idPOP WHERE (L.idAction = '1' OR L.idAction ='4' OR (L.idAction='3' AND l.iddevicereplaced IS NOT NULL)) and D.statusDevice != 'Removed' and date_part('year', l.timelog) =%s and P.popPosition =%s GROUP BY TD.deviceType, to_char(l.datelog, 'Month'), P.popPosition", [year, pos])
+            cursor.execute("SELECT TD.deviceType, COUNT(L.idAction), to_char(l.datelog, 'Month'), P.popPosition AS Month FROM Log L  JOIN Device D ON D.idDevice=L.idDevice JOIN devicetype TD ON D.idDeviceType=TD.idDeviceType JOIN Cabinet C ON L.idCabinet=C.idCabinet join POP as P ON C.idPOP = P.idPOP WHERE (L.idAction = '1' OR L.idAction ='4' OR ((L.idAction='3' AND l.iddevicereplaced IS NOT NULL) and D.statusDevice != 'Removed'))  and date_part('year', l.timelog) =%s and P.popPosition =%s GROUP BY TD.deviceType, to_char(l.datelog, 'Month'), P.popPosition", [year, pos])
 
             insert = cursor.fetchall()
 

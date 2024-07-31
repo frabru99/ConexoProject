@@ -98,24 +98,29 @@
             <canvas :id="'devicePieChart'" class="piechart"></canvas>
             <canvas id="deviceLineChart" class="linechart"></canvas>
             
-            <FloatingBarChart />
+            
       </div>
-      <div>
-          <FloatingBarChart  class="floatingchart"/> 
-      </div>
+      
+    </div>
+
+    <div class="fixed-container">
+                <select v-model="selectedYear" @change="fetchData(titolo)" class="year-selector">
+                  <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
+                </select>
+              <canvas :id="'barChart'" class="barChart"></canvas>
     </div>
        
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch, computed} from 'vue'
+import { ref, onMounted, watch} from 'vue'
 import axios from 'axios'
 import StatusIndicator from './StatusIndicator.vue'
 import { QSelect, QExpansionItem, QTable, QTd, QBtn, Notify, colors} from 'quasar'
 import io from 'socket.io-client'
 import { Chart, registerables } from 'chart.js'
-import FloatingBarChart from 'components/FloatingBarChart.vue'
+
 
 
 Chart.register(...registerables)
@@ -157,9 +162,8 @@ const diagnosticData = ref({})
 const series = ref({})
 let pieChartInstance = null
 let lineChartInstance = null
-
-
-
+let barChartIstance = null
+let titolo = null
 
 
 const updatePieChart = () => {
@@ -250,7 +254,10 @@ const updateLineChart = () => {
         legend: {
           position: 'bottom',
           labels: {
-            color: '#5b8ed7'
+            color: '#5b8ed7',
+            font: {
+              size: 16
+            }
           }
         },
         tooltip: {
@@ -390,7 +397,7 @@ const loadData = async (title, update) => {
     const response = await axios.get(`http://127.0.0.1:3000/device/${title}`)
     const diagnosticResponse = await axios.get(`http://127.0.0.1:3000/cabinet/${title}`)
     const data = response.data
-    
+    titolo = title
 
     if (pieChartInstance) {
       pieChartInstance.destroy()
@@ -442,9 +449,8 @@ const loadData = async (title, update) => {
       filterByStatus()
       updatePieChart();
       updateLineChart();
+      fetchData(titolo)
 
-      
-       
       
       if(update == 0){
         initializeExpansionState()
@@ -503,8 +509,6 @@ const openAllCabinets = () => {
 
 
 
-
-
 //funzione di notifica
 const showNotification = (message) => {
  
@@ -526,6 +530,151 @@ const closeAllCabinets = () => {
     if (idCabinet != 0 & expansionState.value[idCabinet] === true) {
       expansionState.value[idCabinet] = false
     } 
+  })
+}
+
+
+const selectedYear = ref(new Date().getFullYear()) // Anno corrente come valore predefinito
+const years = ref([2023, 2024]) // Anni disponibili
+const data = ref({ labels: [], datasets: [] })
+
+const fetchData = async (title) => {
+  try {
+    const response = await axios.get(`http://127.0.0.1:3000/cabinet/${title}/${selectedYear.value}`)
+    const responseData = response.data
+    console.log(responseData)
+    updateChart(responseData)
+  } catch (error) {
+    console.error("Error fetching data:", error)
+  }
+}
+
+const updateChart = (responseData) => {
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ]
+
+  const deviceTypes = ["Router", "Switch", "Firewall", "PowerSupply"]
+
+  // Prepara i dati per le barre
+  const insertedData = months.map(month => responseData.inserted[month] || [0, 0, 0, 0])
+  const removedData = months.map(month => responseData.removed[month] || [0, 0, 0, 0])
+
+  // Lista di colori predefiniti
+const colors = [
+  'rgba(255, 99, 132', // Rosso
+  'rgba(54, 162, 235', // Blu
+  'rgba(255, 206, 86', // Giallo
+  'rgba(75, 192, 192', // Verde
+  'rgba(153, 102, 255', // Viola
+  'rgba(255, 159, 64', // Arancione
+  'rgba(199, 199, 199', // Grigio
+  'rgba(83, 102, 255', // Blu Scuro
+  'rgba(255, 102, 204', // Rosa
+  'rgba(102, 255, 102'  // Verde Chiaro
+]
+
+// Funzione per ottenere il colore in base all'indice
+const getColor = (index) => colors[index % colors.length]
+
+// Dataset per i dispositivi inseriti
+const datasetsInserted = deviceTypes.map((device, index) => {
+  const colorBase = getColor(index)
+  return {
+    label: `${device} Inserted`,
+    backgroundColor: `${colorBase}, 0.5)`,
+    borderColor: `${colorBase}, 1)`,
+    borderWidth: 1,
+    data: insertedData.map(monthData => monthData[index] || 0),
+    stack: `${device}Inserted`
+  }
+})
+
+// Dataset per i dispositivi rimossi
+const datasetsRemoved = deviceTypes.map((device, index) => {
+  const colorBase = getColor(index)
+  return {
+    label: `${device} Removed`,
+    backgroundColor: `${colorBase}, 0.2)`, // Different opacity for distinction
+    borderColor: `${colorBase}, 1)`,
+    borderWidth: 1,
+    data: removedData.map(monthData => monthData[index] || 0),
+    stack: `${device}Removed`
+  }
+})
+
+
+  // Aggiorna i dati del grafico
+  data.value = {
+    labels: months,
+    datasets: [...datasetsInserted, ...datasetsRemoved]
+  }
+
+  if (barChartIstance) {
+    barChartIstance.destroy()
+  }
+  
+  const ctx = document.getElementById('barChart').getContext('2d');
+  barChartIstance = new Chart(ctx, {
+    type: 'bar',
+    data: data.value,
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: {
+          stacked: true,
+          title: {
+            display: true,
+            text: 'Month',
+            color: '#5b8ed7'
+          },
+          grid: {
+            color: '#5b8ed7' // Cambia il colore delle linee della griglia dell'asse X
+          },
+          ticks: {
+            color: '#5b8ed7'
+          }
+        },
+        y: {
+          beginAtZero: true,
+          min: -10,
+          max: 10,
+          title: {
+            display: true,
+            text: 'Count',
+            color: '#5b8ed7'
+          },
+          grid: {
+            color: '#5b8ed7' // Cambia il colore delle linee della griglia dell'asse X
+          },
+          ticks: {
+            color: '#5b8ed7'
+          }
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              const label = context.dataset.label || ''
+              const value = context.raw
+              return `${label}: ${value}`
+            }
+          }
+        },
+        legend: {
+          position: 'top',
+          labels: {
+            color: "#5b8ed7",
+            font: {
+              size: 16
+            }
+          }
+        }
+      }
+    }
   })
 }
 
@@ -588,26 +737,41 @@ watch(() => props.title, (newParams) => {
 
   .linechart{
     width: 100% !important;
-    margin-right: 400px;
+    margin-right: 200px;
     height: 100% !important;
-    margin-left: 8%;
+    margin-left: 20%;
   }
-
 
   .chartscontainer{
     position: relative;
     width: auto;
     max-width: auto; /* Imposta la larghezza massima */
-    height: 400px; /* Imposta l'altezza fissa per il grafico */
+    height: 500px; /* Imposta l'altezza fissa per il grafico */
     padding-bottom: 0px;
-    margin-left: 100px;
+    margin-left: 300px;
+    margin-bottom: 200px;
     
     display: flex;
     justify-content: space-around;
     margin-top: 200px;
   }
   
+  .fixed-container {
+    position: relative;
+    width: 100%;
+    max-width: 2300px; /* Imposta la larghezza massima */
+    height: 600px; /* Imposta l'altezza fissa per il grafico */
+    padding-bottom: 10px;
+    margin-bottom: 50px;
+    margin: auto;
+
     
+  }
+
+  .barChart{
+    width: 100% !important;
+    height: 100% !important;
+  }
    
    
 </style>
