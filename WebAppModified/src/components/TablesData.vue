@@ -1,15 +1,15 @@
 <template>
-  <div class="q-pa-md">
+  <div class="q-pa-md" >
     <div  class="row items-center q-gutter-sm" >
       <h3 class ="propstitle">{{ props.title }}</h3>
 
       <div class="control-buttons">
-        <q-btn v-if='hasDevices' label="Grafici" @click="toggleCharts" style="background: #67c7f0" />
+        <q-btn v-if='hasDevices' :label="label" @click="toggleCharts" style="background: #67c7f0" />
       </div>
     
     </div>
 
-  <div v-if="showTables">
+  <div v-if="showTables" :class="{ 'fade-in': showTables }">
     <div  class="row items-center q-gutter-sm" >
     <q-btn label="Apri" @click="openAllCabinets" class="col-auto" style="background: #67c7f0"/>
     <q-btn label="Chiudi" @click="closeAllCabinets" class="col-auto"  style="background: #ec6676"/>
@@ -90,8 +90,6 @@
             <p v-for="(value, key) in Object.entries(diagnosticData[idCabinet]).slice(4, 6)" :key="key">{{ value[0]}} {{ value[1] }}</p>
 
             </div>
-
-          
           
           </div>
         </q-expansion-item>
@@ -101,10 +99,13 @@
         </p>
       </div>
     </div>
+
+    <p class="lastUpdate"> Ultimo Aggiornamento alle <strong>{{ lastUpdate[0][2] }}</strong> del Cabinet <strong>{{ lastUpdate[0][1] }}</strong> con ID Device <strong>{{ lastUpdate[0][0] }}</strong></p>
   </div>
 
+ 
     
-  <div v-if="showCharts">
+  <div v-if="showCharts" :class="{ 'fade-in': showCharts }">
 
     <div class="row items-center q-gutter-sm">
       <div class="chartscontainer">
@@ -124,6 +125,8 @@
     </div>
   </div>
 </template>
+
+
 
 <script setup>
 import { ref, onMounted, watch, nextTick} from 'vue'
@@ -173,7 +176,7 @@ const statusOptions = ref([
 ])
 const expansionState = ref({})
 const diagnosticData = ref({})
-const series = ref({})
+const lastUpdate = ref([])
 let pieChartInstance = null
 let lineChartInstance = null
 let barChartIstance = null
@@ -181,6 +184,7 @@ let titolo = null
 const hasData = ref(false)
 
 let hasDevices = true
+
 
 const updatePieChart = () => {
   // Inizializza i contatori
@@ -228,7 +232,7 @@ const updatePieChart = () => {
             labels: {
               color: "#5b8ed7",
               font: {
-                size: 16
+                size: 18
               }
             },
             
@@ -292,13 +296,19 @@ const updateLineChart = () => {
           title: {
             display: true,
             text: 'Date', // Modifica come necessario
-            color: '#5b8ed7'
+            color: '#5b8ed7',
+            font:{
+              size: 16
+            }
           },
           grid: {
             color: '#5b8ed7' // Cambia il colore delle linee della griglia dell'asse X
           },
           ticks: {
-            color: '#5b8ed7'
+            color: '#5b8ed7',
+            font:{
+              size: 16
+            }
           }
         },
         y: {
@@ -309,13 +319,19 @@ const updateLineChart = () => {
           title: {
             display: true,
             text: 'Number of Replaced Device', // Modifica come necessario
-            color: '#5b8ed7'
+            color: '#5b8ed7',
+            font:{
+              size: 16
+            }
           },
           grid: {
             color: '#5b8ed7' // Cambia il colore delle linee della griglia dell'asse X
           },
           ticks : {
-            color: '#5b8ed7'
+            color: '#5b8ed7',
+            font:{
+              size: 16
+            }
           }
 
         }
@@ -412,6 +428,10 @@ const loadData = async (title, update) => {
   try {
     const response = await axios.get(`http://127.0.0.1:3000/device/${title}`)
     const diagnosticResponse = await axios.get(`http://127.0.0.1:3000/cabinet/${title}`)
+    const lastupdateResponse = await axios.get(`http://127.0.0.1:3000/cabinet/${title}/0`)
+
+    lastUpdate.value = lastupdateResponse.data
+    console.log(lastUpdate.value)
     const data = response.data
     titolo = title
     
@@ -476,12 +496,14 @@ const loadData = async (title, update) => {
       if(update == 0){
         initializeExpansionState()
       }
+
+      updateCharts(title)
       
       
     } else {
       groupedRows.value = [0]
       filteredRows.value = [0]
-      hasDevices = false
+      
     }
 
        
@@ -557,7 +579,7 @@ const closeAllCabinets = () => {
 
 
 const selectedYear = ref(new Date().getFullYear()) // Anno corrente come valore predefinito
-const years = ref([2023, 2024]) // Anni disponibili
+const years = ref([2020, 2021, 2022, 2023, 2024]) // Anni disponibili
 const data = ref({ labels: [], datasets: [] })
 
 const fetchData = async (title) => {
@@ -652,29 +674,41 @@ const datasetsRemoved = deviceTypes.map((device, index) => {
           title: {
             display: true,
             text: 'Month',
-            color: '#5b8ed7'
+            color: '#5b8ed7',
+            font:{
+              size: 18
+            }
           },
           grid: {
             color: '#5b8ed7' // Cambia il colore delle linee della griglia dell'asse X
           },
           ticks: {
-            color: '#5b8ed7'
+            color: '#5b8ed7',
+            font: {
+              size: 18
+            }
           }
         },
         y: {
           beginAtZero: true,
-          min: -10,
-          max: 10,
+          min: -40,
+          max: 40,
           title: {
             display: true,
             text: 'Count',
-            color: '#5b8ed7'
+            color: '#5b8ed7',
+            font:{
+              size: 18
+            }
           },
           grid: {
             color: '#5b8ed7' // Cambia il colore delle linee della griglia dell'asse X
           },
           ticks: {
-            color: '#5b8ed7'
+            color: '#5b8ed7',
+            font:{
+              size: 18
+            }
           }
         }
       },
@@ -703,6 +737,7 @@ const datasetsRemoved = deviceTypes.map((device, index) => {
 }
 
 
+const label = ref('Grafici')
 onMounted(() => {
   
   loadData(props.title, 0)
@@ -714,6 +749,7 @@ onMounted(() => {
   socket.on('update_data', (data) => {
     loadData(props.title, 1)
     showNotification("Aggiornamenti nel POP di " + data.position)
+    
   })
 })
 
@@ -727,10 +763,7 @@ watch(() => props.title, (newParams) => {
     showCharts.value = false
     showTables.value = true
     loadData(newParams, 0)
-    
-
-
-    showCharts.value=false
+    label.value = 'Grafici'
   }
 
   
@@ -742,15 +775,37 @@ watch(() => props.title, (newParams) => {
 const updateCharts = async (title) => {
   await nextTick()
 
+
+
   if (showCharts.value) {
-    if (document.getElementById('devicePieChart') && document.getElementById('deviceLineChart')) {
-      updatePieChart()
-      updateLineChart()
-      fetchData(title)
+
+    console.log(showCharts.value)
+    
+    if (pieChartInstance) {
+      console.log("Ciao")
+      pieChartInstance.destroy()
+      pieChartInstance = null
     }
+    if (lineChartInstance) {
+      console.log("Ciao")
+      lineChartInstance.destroy()
+      lineChartInstance = null
+    }
+
+    if (barChartIstance) {
+      console.log("Ciao")
+      barChartIstance.destroy()
+      barChartIstance = null
+    }
+
+    updatePieChart()
+    updateLineChart()
+    fetchData(title)
+    
 
   } else {
     
+    console.log(showCharts.value)
     if (pieChartInstance) {
       pieChartInstance.destroy()
       pieChartInstance = null
@@ -768,7 +823,9 @@ const updateCharts = async (title) => {
 }
 
 
+
 const toggleCharts = () => {
+  toggleLabel()
   showCharts.value = !showCharts.value
   if (showCharts.value == false){
     showTables.value = true
@@ -778,6 +835,10 @@ const toggleCharts = () => {
   updateCharts(props.title)
 }
 
+
+const toggleLabel = () => {
+  label.value = label.value === 'Grafici' ? 'Tabelle' : 'Grafici'
+}
   
 </script>
 
@@ -799,6 +860,7 @@ const toggleCharts = () => {
     margin-bottom: 25px;
     margin-top: 8px;
   }
+
   .my-custom-notification .q-notification__inner {
       font-size: 100px;
    }
@@ -840,9 +902,9 @@ const toggleCharts = () => {
   .fixed-container {
     position: relative;
     width: 100%;
-    max-width: 2300px; /* Imposta la larghezza massima */
+    max-width: 2500px; /* Imposta la larghezza massima */
     height: 600px; /* Imposta l'altezza fissa per il grafico */
-    padding-bottom: 10px;
+    padding-bottom: 3px;
     margin-bottom: 50px;
     margin: auto;
 
@@ -853,5 +915,21 @@ const toggleCharts = () => {
     height: 100% !important;
   }
    
+  .fade-in {
+    animation: fadeInAnimation ease 1.2s;
+    animation-iteration-count: 1;
+    animation-fill-mode: forwards;
+  }
+
+  @keyframes fadeInAnimation {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+
+ 
+
+  .lastUpdate {
+   font-size: x-large;
+  }
    
 </style>

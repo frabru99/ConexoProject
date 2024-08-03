@@ -16,6 +16,7 @@
 
         <div class="q-mb-md">
           <img src="/icons/webex-seeklogo.png" width="170px" height="auto" alt="Webex" class="q-mr-xs" />
+          <img src="/icons/dtlabpw.png" width="190px" height="auto" alt="Webex" class="q-mr-xs" />
         </div>
       </q-toolbar>
     </q-header>

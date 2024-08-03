@@ -3,6 +3,7 @@ from flask_restful import Resource, Api
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
 import psycopg2
+import re
 
 from takefreeSlotWeb import cleanResult, check_space_for_cabinet
 
@@ -122,7 +123,7 @@ class Cabinet(Resource):
 
             return make_response(response, 200)
             
-        elif pos != None and year != None:
+        elif pos != None and year != None and year!=0:
             
             months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
             keys = ["Router", "Switch", "Firewall", "PowerSupply"]
@@ -170,6 +171,28 @@ class Cabinet(Resource):
             return make_response(response, 200)
 
 
+        elif pos!= None and year==0: #mi da ultimo aggiornamento 
+
+            cursor = conn.cursor()
+            cursor.execute("SELECT L.idDevice, L.idCabinet, L.timeLog FROM Log L JOIN Cabinet C on C.idCabinet=L.idCabinet JOIN POP P ON p.idPOP=C.idPOP WHERE timeLog = (SELECT MAX(l2.timelog) FROM Log l2 WHERE l2.idCabinet=L.idCabinet) and p.popPosition = %s ORDER BY l.timelog DESC", [pos])
+
+            value = cursor.fetchall()[0]
+
+            ret  = [value]
+
+            print(ret)
+            return make_response(ret, 200)
+
+
+
+
+class Notification(Resource):
+
+    def get(self, position):
+        
+        socketio.emit('update_data', {'position': position}) #alla get, emissione sulla porta, sui cui sarà in ascolto la webApp
+
+
 
 def device_type_index(device_type, keys):
     try:
@@ -179,14 +202,6 @@ def device_type_index(device_type, keys):
             
 
             
-
-
-class Notification(Resource):
-
-    def get(self, position):
-        
-        socketio.emit('update_data', {'position': position}) #alla get, emissione sulla porta, sui cui sarà in ascolto la webApp
-
 
 
 def getData(pos):
@@ -281,7 +296,7 @@ def sorting_key(item):
 api.add_resource(POP, "/luoghi")
 api.add_resource(Device, "/device/<string:position>")
 api.add_resource(Notification, "/notify/<string:position>")
-api.add_resource(Cabinet, "/cabinet/<string:pos>", "/cabinet/<string:pos>/<int:year>")
+api.add_resource(Cabinet, "/cabinet", "/cabinet/<string:pos>", "/cabinet/<string:pos>/<int:year>")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000, debug=True)
