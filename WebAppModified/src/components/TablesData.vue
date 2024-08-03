@@ -100,7 +100,7 @@
       </div>
     </div>
 
-    <p class="lastUpdate"> Ultimo Aggiornamento alle <strong>{{ lastUpdate[0][2] }}</strong> del Cabinet <strong>{{ lastUpdate[0][1] }}</strong> con ID Device <strong>{{ lastUpdate[0][0] }}</strong></p>
+    <p v-if='hasDevices' class="lastUpdate"> Ultimo Aggiornamento alle <strong>{{ lastUpdate[0][2] }}</strong> del Cabinet <strong>{{ lastUpdate[0][1] }}</strong> con ID Device <strong>{{ lastUpdate[0][0] }}</strong></p>
   </div>
 
  
@@ -511,6 +511,8 @@ const loadData = async (title, update) => {
 
   } catch (error) {
     console.error('Errore nel recupero dei dati:', error)
+    groupedRows.value = [0]
+    filteredRows.value = [0]
   }
 }
 
@@ -930,6 +932,7 @@ const toggleLabel = () => {
 
   .lastUpdate {
    font-size: x-large;
+   padding-top:30px;
   }
    
 </style>
