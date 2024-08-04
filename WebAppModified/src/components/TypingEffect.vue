@@ -20,6 +20,8 @@ onMounted(() => {
   typeLine(0)
 })
 
+//Funzione che permette la scrittura di "Lines" con effetto scrittura. 
+
 function typeLine(index) {
   const text = lines.value[index]
   const typingTextElement = document.getElementById(`typing-text-${index}`)
@@ -28,7 +30,7 @@ function typeLine(index) {
 
   let currentCharIndex = 0
 
-  function type() {
+  function type() { //permette di scrivere lettera per lettera e poi passare alla riga successiva  
     if (currentCharIndex < text.length) {
       typingTextElement.textContent += text.charAt(currentCharIndex)
       currentCharIndex++
@@ -44,7 +46,7 @@ function typeLine(index) {
     }
   }
 
-  type()
+  type() //chiamata ricorsiva a type 
 }
 </script>
 

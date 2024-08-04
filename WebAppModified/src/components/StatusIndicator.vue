@@ -13,16 +13,19 @@
 </template>
 
 <script setup>
+
+//Template e Script degli indicatori di stato nella Tabella di ogni Cabinet. 
+
 import { computed } from 'vue'
 
 const props = defineProps({
   status: {
     type: String,
-    required: true
+    required: true //a seconda dello stato
   }
 })
 
-const indicatorClass = computed(() => {
+const indicatorClass = computed(() => {  //Affidiamo una classe all'indicatore a seconda dello stato 
   switch (props.status) {
     case 'Active':
       return 'status-active'
@@ -35,7 +38,7 @@ const indicatorClass = computed(() => {
   }
 })
 
-const statusText = computed(() => {
+const statusText = computed(() => { //A seconda dello stato affidiamo pure una scritta. 
   switch (props.status) {
     case 'Active':
       return 'The device is currently active'
@@ -50,6 +53,11 @@ const statusText = computed(() => {
 </script>
 
 <style scoped>
+/*
+  Stile dell'indicatore
+*/ 
+
+
 .status-indicator-container {
   position: relative;
   display: inline-block;

@@ -1,4 +1,21 @@
+
 <template>
+
+  <!--TEMPLATE PRINCIPALE, SONO PRESENTI TUTTI GLI ELEMENTI VISUALIZZATI A SCHERMO 
+    - TITOLO POP
+    - BOTTONE SCELTA PER VISUALIZZARE TRA GRAFICI O TABELLE 
+      - SE TABELLE: 
+        BOTTONE APRI E CHIUDI
+        FILTRO
+        SERIE DI TABELLE PER OGNI CABINET
+        ULTIMO AGGIORNAMENTO 
+      - SE GRAFICI:
+        GRAFICO A TORTA PER VISUALIZZARE TOTALI ATTIVI, INATTIVI, RIMOSSI.
+        LINECHART PER VISULIZZARE LA QUANTITA' DI DISPOSITIVI SOSTITUITI NEL TEMPO.
+        FLOATING BAR CHART PER INDICARE DISPOSITIVI INSERITI E RIMOSSI OGNI MESE. 
+    - NOTIFICA
+  -->
+
   <div class="q-pa-md" >
     <div  class="row items-center q-gutter-sm" >
       <h3 class ="propstitle">{{ props.title }}</h3>
@@ -129,25 +146,30 @@
 
 
 <script setup>
+
+//IMPORT
 import { ref, onMounted, watch, nextTick} from 'vue'
-import axios from 'axios'
-import StatusIndicator from './StatusIndicator.vue'
-import { QSelect, QExpansionItem, QTable, QTd, QBtn, Notify, colors} from 'quasar'
-import io from 'socket.io-client'
-import { Chart, registerables } from 'chart.js'
+import axios from 'axios' //PER LE RICHIESTE AL BACKEND
+import StatusIndicator from './StatusIndicator.vue' //L'indicatore di Stato
+import { QSelect, QExpansionItem, QTable, QTd, QBtn, Notify} from 'quasar' 
+import io from 'socket.io-client'//WebSocket per ascoltare l'arrivo del pacchetto di update (notifica)
+import { Chart, registerables } from 'chart.js' //Per i grafici 
+
+Chart.register(...registerables) //Registrazione dei grafici
 
 
-
-Chart.register(...registerables)
 
 const headerClasses = "text-center"
-const props = defineProps({
+
+const props = defineProps({ //definizione prop di titolo per il pannello
   title: {
     type: String,
     required: true
   }
 })
 
+
+//Colonne delle tabelle. 
 const columns = [
   { name: 'iddevice', align: 'center', label: 'ID Device', field: 'iddevice', sortable: true, style: " font-size: large", headerStyle:  "font-size: large"},
   { name: 'serialnumber', label: 'Serial Number', field: 'serialnumber', sortable: true , style: " font-size: large", headerStyle:  "font-size: large"},
@@ -161,9 +183,11 @@ const columns = [
   { name: 'device rep', label: 'Device Replaced', field: 'devicereplaced', sortable: true, style: " font-size: large", headerStyle:  "font-size: large"}
 ]
 
+//Variabili di utilità per la visualizzazione delle Tabelle o dei Grafici
 var showTables = ref(true);
 var showCharts = ref(false);
 
+//Variabili di utilità per i Dati e il filtraggi. 
 const groupedRows = ref({})
 const filteredRows = ref({})
 const selectedStatus = ref('All')
@@ -174,18 +198,25 @@ const statusOptions = ref([
     'Inactive',
     'Removed'
 ])
-const expansionState = ref({})
+
 const diagnosticData = ref({})
 const lastUpdate = ref([])
+
+//Variabile di utilità èer l'espansione delle zone retrattili. 
+const expansionState = ref({})
+
+//Variabili di utilità per i Grafici.
 let pieChartInstance = null
 let lineChartInstance = null
 let barChartIstance = null
+
+//Altre Variabili di utilità.
 let titolo = null
 const hasData = ref(false)
 
 let hasDevices = true
 
-
+//Funzione di Aggiornamento del Grafico a torta 
 const updatePieChart = () => {
   // Inizializza i contatori
   let totalActiveCount = 0
@@ -211,7 +242,6 @@ const updatePieChart = () => {
     pieChartInstance.destroy()
   }
 
-  //if (totalActiveCount != 0 |  totalInactiveCount!=0){
     // Crea un solo grafico con i dati aggregati
     const ctx = document.getElementById('devicePieChart').getContext('2d')
     pieChartInstance = new Chart(ctx, {
@@ -249,10 +279,10 @@ const updatePieChart = () => {
         }
       }
     })
-  //}
 }
 
 
+//Funzione di caricamento/Update dei dati per il LineChart
 const updateLineChart = () => {
   const { labels, datasets } = prepareLineChartData();
 
@@ -260,7 +290,6 @@ const updateLineChart = () => {
     lineChartInstance.destroy();
   }
 
-  
   const ctx = document.getElementById('deviceLineChart').getContext('2d');
   lineChartInstance = new Chart(ctx, {
     type: 'line',
@@ -340,7 +369,7 @@ const updateLineChart = () => {
   });
 };
 
-//generazione colori, permette di generare colori nè troppo chiari nè troppo scuri
+//Generazione colori, permette di generare colori nè troppo chiari nè troppo scuri per il LineChart
 const getRandomColor = () => {
   const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
@@ -377,16 +406,15 @@ const getRandomColor = () => {
 };
 
 
+
+//Funzione di Preparazione dei dati per il LineChart, Date sulle ascisse, quantità di dispositivi sostituiti sulle ordinate. 
 const prepareLineChartData = () => {
   const labels = []; // Etichette sull'asse X (ad esempio date)
   const datasets = [];
 
   for (const [idCabinet, cabinetRows] of Object.entries(filteredRows.value)) {
 
-    
-    console.log("Coppia")
-    console.log([idCabinet, cabinetRows])
-
+  
     if (idCabinet !== '0') {
       // Esempio di preparazione dati
       const replacedDevices = cabinetRows.filter(item => item.devicereplaced === null && item.idaction === 3 ); // Dispositivi sostituiti
@@ -424,6 +452,17 @@ const prepareLineChartData = () => {
 };
 
 
+/*FUNZIONE PRINCIPALE, LOAD DATA:
+Input: Prende in ingresso il title (Posizione POP) e un selettore Update. 
+
+Effettua le obute richieste per i dati dei dispositivi, quelli di diagnostica e l'ultimo update. 
+
+
+I dati vengono quindi presi e preparati per essere mostrati, e vengono aggiornati i grafici.
+
+Se è un update (1),  non ri-inizializzo l'espansione dei Cabinet, se è la prima volta che accedo al Tab, si. 
+
+*/
 const loadData = async (title, update) => {
   try {
     const response = await axios.get(`http://127.0.0.1:3000/device/${title}`)
@@ -500,14 +539,13 @@ const loadData = async (title, update) => {
       updateCharts(title)
       
       
-    } else {
+    } else { //Se non c'è nulla, pongo tutto a 0
       groupedRows.value = [0]
       filteredRows.value = [0]
       
     }
 
-       
-   
+      
 
   } catch (error) {
     console.error('Errore nel recupero dei dati:', error)
@@ -516,6 +554,11 @@ const loadData = async (title, update) => {
   }
 }
 
+
+/* FUNZIONE DI FILTRAGGIO. 
+Queste sono le effettive righe mostrate, in base al filtro scelto. Di Default, esso è impostato su 'ALL'
+
+*/
 const filterByStatus = () => {
   if (selectedStatus.value == 'All') {
     filteredRows.value = groupedRows.value
@@ -536,6 +579,8 @@ const filterByStatus = () => {
   
 }
 
+
+//Funzione di inizializzazione dello stato di espansione delle zone retrattili. 
 const initializeExpansionState = () => {
   for (const idCabinet in groupedRows.value) {
     if (!expansionState.value.hasOwnProperty(idCabinet)) {
@@ -544,6 +589,7 @@ const initializeExpansionState = () => {
   }
 }
 
+//Funzionee per l'aperture di tutte le zone retrattili
 const openAllCabinets = () => {
   
   Object.keys(filteredRows.value).forEach(idCabinet => {
@@ -553,9 +599,18 @@ const openAllCabinets = () => {
   })
 }
 
+//Funzione di chiusura di tutti i cabinet aperti. 
+const closeAllCabinets = () => {
+  
+  Object.keys(filteredRows.value).forEach(idCabinet => {
+    if (idCabinet != 0 & expansionState.value[idCabinet] === true) {
+      expansionState.value[idCabinet] = false
+    } 
+  })
+}
 
 
-//funzione di notifica
+//Funzione di Notifica, utilizza Notify di Quasar. 
 const showNotification = (message) => {
  
   Notify.create({
@@ -570,20 +625,13 @@ const showNotification = (message) => {
 }
 
 
-const closeAllCabinets = () => {
-  
-  Object.keys(filteredRows.value).forEach(idCabinet => {
-    if (idCabinet != 0 & expansionState.value[idCabinet] === true) {
-      expansionState.value[idCabinet] = false
-    } 
-  })
-}
-
-
+//Variabili per il BarChart
 const selectedYear = ref(new Date().getFullYear()) // Anno corrente come valore predefinito
 const years = ref([2020, 2021, 2022, 2023, 2024]) // Anni disponibili
 const data = ref({ labels: [], datasets: [] })
 
+
+//Fetch dei Dati per il BarChart dal Backend
 const fetchData = async (title) => {
   try {
     const response = await axios.get(`http://127.0.0.1:3000/cabinet/${title}/${selectedYear.value}`)
@@ -596,6 +644,7 @@ const fetchData = async (title) => {
   }
 }
 
+//Funzione di aggiornamento dei dati del grafico. 
 const updateChart = (responseData) => {
   const months = [
     "January", "February", "March", "April", "May", "June",
@@ -739,16 +788,16 @@ const datasetsRemoved = deviceTypes.map((device, index) => {
 }
 
 
-const label = ref('Grafici')
+//Label per pulsante Tabelle/Grafici
+const label = ref('Grafici') 
+
 onMounted(() => {
   
-  loadData(props.title, 0)
-  
- 
+  loadData(props.title, 0) //Caricare i dati al caricamento della pagina
 
-  const socket = io('http://127.0.0.1:3000')
+  const socket = io('http://127.0.0.1:3000') //Ascolto sulla WebSocket esposta dal Backend
   
-  socket.on('update_data', (data) => {
+  socket.on('update_data', (data) => { //Se viene recepito il messaggio, allora ricarico i dati e mostro notifica. 
     loadData(props.title, 1)
     showNotification("Aggiornamenti nel POP di " + data.position)
     
@@ -756,8 +805,7 @@ onMounted(() => {
 })
 
 
-
-
+//Funzione che mi permette di aggiornare i dati correttamente cliccando un altro tab 
 watch(() => props.title, (newParams) => {
   
   if (newParams) {
@@ -868,7 +916,7 @@ const toggleLabel = () => {
    }
 
    .diagnostics{
-    font-size:  17px;
+    font-size:  19px;
     font-weight: bold;
     margin-top: 20px;
     margin-left: 20px;
@@ -878,6 +926,8 @@ const toggleLabel = () => {
   .piechart {
     width: 100% !important;
     height: 100% !important;
+    object-fit: contain;
+    
   }
 
   .linechart{
@@ -885,9 +935,11 @@ const toggleLabel = () => {
     margin-right: 200px;
     height: 100% !important;
     margin-left: 20%;
+    object-fit: contain;
+     
   }
 
-  .chartscontainer{
+  .chartscontainer {
     position: relative;
     width: auto;
     max-width: auto; /* Imposta la larghezza massima */
@@ -895,11 +947,24 @@ const toggleLabel = () => {
     padding-bottom: 0px;
     margin-left: 20%;
     margin-bottom: 50px;
-    
     display: flex;
     justify-content: space-around;
     margin-top: 10px;
+}
+
+@-moz-document url-prefix(){
+  .linechart{
+    width: 700px !important;
+    max-width: auto;
   }
+
+  .piechart {
+    width: 700px !important;
+  }
+
+
+}
+
   
   .fixed-container {
     position: relative;

@@ -26,8 +26,30 @@ app = Flask("ConexoWeb") #creiamo l'app Flask
 api = Api(app) #la rendiamo ogetto restful
 # Dopo la creazione dell'app
 # Abilita CORS per tutte le richieste
+
+#SOCKET LA RICEZIONE DELLA NOTIFICA, PERMETTIAMO OGNI DOMINIO PER CORS (CROSS ORIGIN RESOURCE SHARING)
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+#RENDIAMO LA NOSTRA APP CORS PER PERMETTERE LO SHARING DELLE RISORSE. 
 CORS(app, resources={r"/*": {"origins": "*"}})
+
+
+
+"""
+CLASSE POP, METODI IMPLEMENTATI: GET
+
+
+GET: Ritorna una lista dei POP presenti nel Database.
+
+Input: - 
+
+Output: 
+Restituisce una lista di dizionari composti da due coppie chiave valore:
+- title: Nome città
+- caption: "Pop di" + nome città
+   
+
+"""
 
 class POP(Resource):
 
@@ -49,6 +71,18 @@ class POP(Resource):
         return make_response(jsonify(response), 200)
 
 
+
+
+"""
+CLASSE DEVICE, METODI IMPLEMENTATI: GET
+
+GET:
+
+- Input: Position, posizione del POP interessato. 
+
+- Output: Torna una lista, che contiene dizionari. Questi dizionari contengono le informazioni utili per ogni dispositivo di ogni Cabinet.  
+
+"""
 class Device(Resource):
 
     def get(self, position):
@@ -63,23 +97,24 @@ class Device(Resource):
         print(d)
 
         response = []
-        for device in d:
-            diz = [{"iddevice": device[0], 
-            "serialnumber": device[1], 
-            "devicesize": device[2], 
-            "producer": device[3], 
-            "yearofproduction": device[4], 
-            "status": device[5],
-            "usedslot": device[6],
-            "devicetype": device[7],
-            "idcabinet": device[8],
-            "timelog": device[9],
-            "devicereplaced": device[10],
-            "idaction": device[11]
-            } for device in d]
+        
+        diz = [{"iddevice": device[0], 
+        "serialnumber": device[1], 
+        "devicesize": device[2], 
+        "producer": device[3], 
+        "yearofproduction": device[4], 
+        "status": device[5],
+        "usedslot": device[6],
+        "devicetype": device[7],
+        "idcabinet": device[8],
+        "timelog": device[9],
+        "devicereplaced": device[10],
+        "idaction": device[11]
+        } for device in d]
 
         if len(d) == 0:
             diz = 0
+
         response.append(diz)
         
         
@@ -88,7 +123,26 @@ class Device(Resource):
         
         return make_response(jsonify(response), 200)
         
-                
+"""
+CLASSE CABINET, METODI IMPLEMENTATI: GET
+
+
+GET (POS, YEAR): Il metodo GET possiede più valenze. 
+
+- POS != NONE and YEAR == NONE
+    - Input: POS
+    - Output: Grazie a getData prende ricava tutte le informazioni utili al Database e torna tutte le informazioni di Diagnostica all'interfaccia Web, 
+      che vengono ritornate in un Dizionario.
+
+- POS != NONE and YEAR != NONE and YEAR != 0
+    - Input: POS e YEAR diverso da 0. 
+    - Output: Ritorna tutte le informazioni utili relative al grafico di inventory annuale. 
+
+- POS != NONE and Year == 0
+    - Input: POS 
+    - Output: Mi fornisce l'aggiornamento (timeLog, idCabinet e idDevice) più recente per tutto il POP. 
+
+"""
 
 class Cabinet(Resource):
 
@@ -184,6 +238,15 @@ class Cabinet(Resource):
             return make_response(ret, 200)
 
 
+"""
+CLASS NOTIFICATION, METODI IMPLEMENTATI: GET
+
+
+GET: position
+- Emette un pacchetto sulla socket su cui la WebApp è in ascolto. 
+  Innesca un aggiornamento dei dati nell'applicazione Web richiedendo i nuovi dati per quella specifica posizione.
+
+"""
 
 
 class Notification(Resource):
@@ -194,6 +257,12 @@ class Notification(Resource):
 
 
 
+
+"""
+DEVICE_TYPE_INDEX: Funzione di utilità per l'ordinamento dei Dizionari.
+
+"""
+
 def device_type_index(device_type, keys):
     try:
         return keys.index(device_type)
@@ -201,8 +270,24 @@ def device_type_index(device_type, keys):
         return -1  # Tipo di dispositivo non trovato
             
 
-            
 
+"""
+getDATA: Funzione di utilità che permette di richiedere i dati di diagnostica per ogni cabinet 
+
+Input: pos, variabile che indica la posizione
+
+Output:
+- keys: Lista di chiavi (ID dei Cabinet presenti in quella posizione specificata).
+- freeSpace: Lista dello spazio libero totale per ogni cabinet.
+- resp: Dizionario che continene gli spazi massimi contigui restanti per ogni cabinet. 
+  Se è vuoto, viene riempito con le dimensioni massime dei Cabinet. 
+- active: Quantità di dispositivi attivi per ogni cabinet.
+- inactive: Quantità di dispositivi inattivi per ogni cabinet.
+- removed: Quantità di dispositivi rimossi per ogni cabinet.
+- updates: Ultimo aggiornamento per ogni cabinet. 
+
+
+"""
 
 def getData(pos):
 
@@ -285,7 +370,13 @@ def getData(pos):
         return keys, freeSpace, resp, active, inactive, removed, updates
 
 
-#funzione di utilità sorting key
+
+"""
+Funzione di utilità per sort della Lista in Get Data per la dimensione massima contigua disponibile. 
+
+Vengono scomposte le stringhe e viene ritornata questra tripla fatta dal prefisso e il primo e secondo numero (Inizio / Fine occupazione degli slot)
+
+"""
 def sorting_key(item):
     
     string = item[0]
@@ -293,10 +384,20 @@ def sorting_key(item):
     return (prefix, first_num, second_num)
 
 
+
+"""
+AGGIUNTA DELLE RISORSE ALL'APP FLASK
+
+"""
+
 api.add_resource(POP, "/luoghi")
 api.add_resource(Device, "/device/<string:position>")
 api.add_resource(Notification, "/notify/<string:position>")
 api.add_resource(Cabinet, "/cabinet", "/cabinet/<string:pos>", "/cabinet/<string:pos>/<int:year>")
 
+
+"""
+ATTESA SUL PORTO 3000
+"""
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000, debug=True)

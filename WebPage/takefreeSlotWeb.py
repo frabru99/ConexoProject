@@ -10,7 +10,7 @@ Input:
 
 
 Output:
-- Valore massimo di spazio contigup vuoto.
+- Dizionario con spazio disponibile per ogni cabinet. 
 
 """
 
@@ -97,13 +97,13 @@ def check_space_for_cabinet(list, cabinet_max_sizes):
         
     print("Result: ")
     print(result)
-    print(type(result))
+    
     
     return result
 
 
 """
-Clen_Result: funzione che permette di "pulire" e preprare i dati per le funzioni sovrastanti.
+cleanResult: funzione che permette di "pulire" e preprare i dati per le funzioni sovrastanti.
 
 Input:
 - result: Risultato della query. 
@@ -116,6 +116,7 @@ Output:
     - response: lista da passare alle funzioni precedenti ([["A-NA - 1 / 3"], ["A-NA - 4 / 8"], ...])
     - all_free: Tutti i cabinet completamente liberi, verranno gestiti sepratamente prima di restituire la risposta al bot.
 
+Questa versione prevede all_free come dizionario invece che una lista. 
 
 """
 
@@ -154,7 +155,6 @@ def cleanResult(result, dimension, dictionary_max_dimensions):
         
       
     return response, all_free
-
 
 
 #TEST

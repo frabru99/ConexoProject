@@ -1,9 +1,10 @@
 <template>
+  <!--Al click di un POP, emette il titolo.-->
   <q-item
     clickable
     tag="a"
     target="_blank"
-    @click="$emit('select', title)"
+    @click="$emit('select', title)" 
   >
     <q-item-section
       v-if="props.icon"
@@ -20,6 +21,8 @@
 </template>
 
 <script setup>
+
+//Definizione template del Menù Laterale e i valori Presenti, presi tramite query. 
 defineOptions({
   name: 'EsploraRisorse'
 })
